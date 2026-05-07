@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-green: #228b22;
+  --color-sidebar-bg: #222d32;
+  --color-sidebar-active: #1e282c;
+  --color-content-bg: #ecf0f5;
+}
+
+:root {
+  --background: #ecf0f5;
+  --foreground: #333333;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
