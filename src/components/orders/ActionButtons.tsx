@@ -1,10 +1,54 @@
 'use client';
 
-import React from 'react';
-import { Plus, CloudSync, FileOutput, FileUp, Download, RefreshCw, Trash2, CheckCircle, Package, FileText, ChevronDown } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Plus, CloudSync, FileOutput, FileUp, Download, RefreshCw,
+  Trash2, CheckCircle, Package, FileText, ChevronDown, Loader2,
+} from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { generateCsv, downloadCsv, generateTemplateCsv, EXPORT_COLUMNS, IMPORT_COLUMNS } from '@/lib/csv';
+import { CsvImportModal } from './CsvImportModal';
 
 export const ActionToolbar = () => {
+  const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  /* ---- Export ---- */
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('order_number, shipping_method, product_list, remarks, status, tracking_info, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const csv = generateCsv(data ?? [], EXPORT_COLUMNS);
+      const ts = new Date().toISOString().slice(0, 10);
+      downloadCsv(csv, `订单导出_${ts}.csv`);
+    } catch (err: any) {
+      alert('导出失败：' + (err.message || '未知错误'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  /* ---- Template ---- */
+  const handleTemplateDownload = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const csv = generateTemplateCsv(IMPORT_COLUMNS);
+    downloadCsv(csv, '订单导入模板.csv');
+  };
+
+  /* ---- Import complete ---- */
+  const handleImportComplete = () => {
+    // Reload the page so OrderTable re-fetches from Supabase
+    window.location.reload();
+  };
+
   return (
+    <>
     <div className="flex flex-col gap-4 mb-4">
       {/* Primary Actions (White with border) */}
       <div className="flex flex-wrap items-center gap-2">
@@ -16,11 +60,22 @@ export const ActionToolbar = () => {
           <CloudSync className="w-4 h-4 text-black" />
           <span>同步缺失订单</span>
         </button>
-        <button className="bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1.5 font-bold shadow-sm transition-all active:scale-95">
-          <FileOutput className="w-4 h-4 text-black" />
-          <span>导出订单</span>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1.5 font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {exporting ? (
+            <Loader2 className="w-4 h-4 text-black animate-spin" />
+          ) : (
+            <FileOutput className="w-4 h-4 text-black" />
+          )}
+          <span>{exporting ? '正在导出…' : '导出订单'}</span>
         </button>
-        <button className="bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1.5 font-bold shadow-sm transition-all active:scale-95">
+        <button
+          onClick={() => setImportOpen(true)}
+          className="bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1.5 font-bold shadow-sm transition-all active:scale-95"
+        >
           <FileUp className="w-4 h-4 text-black" />
           <span>Excel批量导入订单</span>
         </button>
@@ -29,7 +84,13 @@ export const ActionToolbar = () => {
           <span>批量上传面单</span>
         </button>
 
-        <a href="#" className="text-blue-600 text-sm hover:underline ml-2">Excel 导入订单模板下载</a>
+        <a
+          href="#"
+          onClick={handleTemplateDownload}
+          className="text-blue-600 text-sm hover:underline ml-2"
+        >
+          Excel 导入订单模板下载
+        </a>
         <div className="flex items-center gap-2 ml-4">
           <span className="text-sm font-bold text-gray-700">上次同步:</span>
           <button className="bg-[#f4f4f4] border border-gray-300 hover:bg-gray-200 px-3 py-1 rounded text-sm font-medium shadow-sm transition-all active:scale-95">
@@ -82,5 +143,13 @@ export const ActionToolbar = () => {
         </div>
       </div>
     </div>
+
+    {importOpen && (
+      <CsvImportModal
+        onClose={() => setImportOpen(false)}
+        onImportComplete={handleImportComplete}
+      />
+    )}
+    </>
   );
 };
