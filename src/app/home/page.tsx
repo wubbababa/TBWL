@@ -1,20 +1,19 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   ShoppingCart, 
   ShoppingBag, 
-  AlertCircle, 
   Megaphone,
   CreditCard,
-  ChevronRight,
   ArrowRight
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
-const StatCard = ({ count, label, Icon, color }: { count: string, label: string, Icon: any, color: string }) => (
+const StatCard = ({ count, label, Icon, color, loading }: { count: string | number, label: string, Icon: any, color: string, loading?: boolean }) => (
   <div className={`${color} rounded-sm shadow-sm text-white flex flex-col relative overflow-hidden group h-[110px]`}>
     <div className="p-4 z-10">
-      <h3 className="text-3xl font-bold">{count}</h3>
+      <h3 className="text-3xl font-bold">{loading ? '...' : count}</h3>
       <p className="text-sm opacity-90">{label}</p>
     </div>
     <div className="absolute top-2 right-2 opacity-20 transition-transform group-hover:scale-110">
@@ -28,14 +27,48 @@ const StatCard = ({ count, label, Icon, color }: { count: string, label: string,
 );
 
 export default function HomePage() {
+  const [stats, setStats] = useState({
+    all: 0,
+    pending: 0,
+    taiwan: 0,
+    abnormal: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      // 获取各状态数量
+      const { data: allData } = await supabase.from('orders').select('status');
+      
+      if (allData) {
+        const counts = {
+          all: allData.length,
+          pending: allData.filter(o => o.status === '待处理').length,
+          taiwan: allData.filter(o => o.status === '已送店' || o.status === '待确认入店').length,
+          abnormal: allData.filter(o => o.status === '异常件').length
+        };
+        setStats(counts);
+      }
+    } catch (error) {
+      console.error('Fetch stats error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
   return (
     <div className="flex flex-col gap-6">
       {/* Top Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard count="0" label="所有订单" Icon={ShoppingCart} color="bg-[#00a65a]" />
-        <StatCard count="0" label="待處理" Icon={ShoppingBag} color="bg-[#00a65a]" />
-        <StatCard count="0" label="待入店" Icon={ShoppingCart} color="bg-[#00a65a]" />
-        <StatCard count="0" label="異常件" Icon={ShoppingCart} color="bg-[#00a65a]" />
+        <StatCard count={stats.all} label="所有订单" Icon={ShoppingCart} color="bg-[#00a65a]" loading={loading} />
+        <StatCard count={stats.pending} label="待處理" Icon={ShoppingBag} color="bg-[#0073b7]" loading={loading} />
+        <StatCard count={stats.taiwan} label="待入店" Icon={ShoppingCart} color="bg-[#f39c12]" loading={loading} />
+        <StatCard count={stats.abnormal} label="異常件" Icon={ShoppingCart} color="bg-[#dd4b39]" loading={loading} />
       </div>
 
       {/* Main Grid: Announcement and Info */}
@@ -55,14 +88,14 @@ export default function HomePage() {
             </section>
 
             <section>
-              <p className="font-bold mb-2">臺灣宅配取貨地址如下➔（宅配通、嘉裏快遞、新竹、黑猫上門取件）</p>
+              <p className="font-bold mb-2">臺灣宅配取货地址如下➔（宅配通、嘉裏快遞、新竹、黑猫上門取件）</p>
               <p>收件人：小樂蝦臺邦+出貨名字</p>
               <p>電話：03-3131680</p>
               <p>地址：338桃園市蘆竹區三德街42之2號</p>
             </section>
 
             <section>
-              <p className="font-bold mb-2">711退貨地址</p>
+              <p className="font-bold mb-2">711退货地址</p>
               <p>超商門門：711内海門市（名字搜索：内海）</p>
               <p>收件人：小樂蝦臺邦</p>
               <p>電話：0909313353</p>
@@ -70,7 +103,7 @@ export default function HomePage() {
             </section>
 
             <section>
-              <p className="font-bold mb-2">蝦皮店到店退貨門市 大園菓林店</p>
+              <p className="font-bold mb-2">蝦皮店到店退货門市 大園菓林店</p>
               <p>收貨人：小樂蝦臺邦</p>
               <p>地址：桃園市大園區菓林路145號1樓</p>
               <p>電話：0909313353</p>
@@ -116,12 +149,25 @@ export default function HomePage() {
             <h3 className="font-bold text-gray-800 mb-1">臺邦微信公眾號</h3>
             <p className="text-xs text-gray-500 mb-4 text-center">獲取訂單異常狀態推送服務</p>
             
-            {/* Styled QR placeholder */}
             <div className="w-48 h-48 bg-gray-100 border border-gray-200 flex items-center justify-center relative mb-4">
-               {/* Simulating a QR code look */}
                <div className="w-40 h-40 grid grid-cols-4 grid-rows-4 gap-1 p-2 bg-white">
                   {[...Array(16)].map((_, i) => (
                     <div key={i} className={`rounded-sm ${Math.random() > 0.4 ? 'bg-gray-800' : 'bg-transparent'}`}></div>
+                  ))}
+               </div>
+               <div className="absolute bottom-2 right-2 bg-white p-1 rounded-sm shadow-sm border border-gray-100">
+                  <div className="w-6 h-6 bg-[#3c8dbc] rounded-sm flex items-center justify-center text-[10px] text-white font-bold">TB</div>
+               </div>
+            </div>
+            
+            <p className="text-sm text-gray-600 italic">掃一掃關注</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+`rounded-sm ${Math.random() > 0.4 ? 'bg-gray-800' : 'bg-transparent'}`}></div>
                   ))}
                </div>
                <div className="absolute bottom-2 right-2 bg-white p-1 rounded-sm shadow-sm border border-gray-100">
