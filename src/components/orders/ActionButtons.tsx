@@ -2,16 +2,34 @@
 
 import React, { useState } from 'react';
 import {
-  Plus, CloudSync, FileOutput, FileUp, Download, RefreshCw,
+  Plus, FileOutput, FileUp, Download, RefreshCw,
   Trash2, CheckCircle, Package, FileText, ChevronDown, Loader2,
+  AlertTriangle, XCircle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { generateCsv, downloadCsv, generateTemplateCsv, EXPORT_COLUMNS, IMPORT_COLUMNS } from '@/lib/csv';
 import { CsvImportModal } from './CsvImportModal';
 
-export const ActionToolbar = () => {
+// lucide-react v1 may not export CloudSync — use a fallback
+let CloudSync: React.ComponentType<{ className?: string }>;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  CloudSync = require('lucide-react').CloudSync ?? (() => null);
+} catch {
+  CloudSync = () => null;
+}
+
+interface Props {
+  /** IDs of currently selected orders. */
+  selectedIds: string[];
+  /** Called after a batch action completes so the parent can refresh. */
+  onActionComplete: () => void;
+}
+
+export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [batchLoading, setBatchLoading] = useState<string | null>(null); // which action is running
 
   /* ---- Export ---- */
   const handleExport = async () => {
@@ -27,8 +45,9 @@ export const ActionToolbar = () => {
       const csv = generateCsv(data ?? [], EXPORT_COLUMNS);
       const ts = new Date().toISOString().slice(0, 10);
       downloadCsv(csv, `订单导出_${ts}.csv`);
-    } catch (err: any) {
-      alert('导出失败：' + (err.message || '未知错误'));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      alert('导出失败：' + msg);
     } finally {
       setExporting(false);
     }
@@ -43,9 +62,66 @@ export const ActionToolbar = () => {
 
   /* ---- Import complete ---- */
   const handleImportComplete = () => {
-    // Reload the page so OrderTable re-fetches from Supabase
-    window.location.reload();
+    onActionComplete();
   };
+
+  /* ---- Guard: require selection ---- */
+  const requireSelection = (): boolean => {
+    if (selectedIds.length === 0) {
+      alert('请先勾选要操作的订单');
+      return false;
+    }
+    return true;
+  };
+
+  /* ---- Batch delete ---- */
+  const handleBatchDelete = async () => {
+    if (!requireSelection()) return;
+    const confirmed = window.confirm(
+      `确定要删除选中的 ${selectedIds.length} 条订单吗？此操作不可撤销。`,
+    );
+    if (!confirmed) return;
+
+    setBatchLoading('delete');
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .in('id', selectedIds);
+      if (error) throw error;
+      onActionComplete();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      alert('批量删除失败：' + msg);
+    } finally {
+      setBatchLoading(null);
+    }
+  };
+
+  /* ---- Batch status update helper ---- */
+  const batchUpdateStatus = async (status: string, actionKey: string) => {
+    if (!requireSelection()) return;
+    setBatchLoading(actionKey);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status, updated_at: new Date().toISOString() })
+        .in('id', selectedIds);
+      if (error) throw error;
+      onActionComplete();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      alert(`操作失败：${msg}`);
+    } finally {
+      setBatchLoading(null);
+    }
+  };
+
+  const handleSubmitPacking = () => batchUpdateStatus('已提交/待打包', 'packing');
+  const handleSetAbnormal = () => batchUpdateStatus('异常件', 'abnormal');
+  const handleCloseOrders = () => batchUpdateStatus('已关闭', 'close');
+
+  const hasSelection = selectedIds.length > 0;
 
   return (
     <>
@@ -101,19 +177,41 @@ export const ActionToolbar = () => {
 
       {/* Batch Operations (Colored) */}
       <div className="flex flex-wrap items-center gap-2 bg-transparent">
-        <button className="bg-[#f39c12] hover:bg-[#e08e0b] text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition-all active:scale-95 font-medium">
-          <Trash2 className="w-4 h-4" />
-          <span>批量删除</span>
+        {/* 批量删除 */}
+        <button
+          onClick={handleBatchDelete}
+          disabled={batchLoading === 'delete' || !hasSelection}
+          className="bg-[#f39c12] hover:bg-[#e08e0b] disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition-all active:scale-95 font-medium"
+          title={hasSelection ? `删除选中的 ${selectedIds.length} 条` : '请先选择订单'}
+        >
+          {batchLoading === 'delete' ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Trash2 className="w-4 h-4" />
+          )}
+          <span>批量删除{hasSelection ? ` (${selectedIds.length})` : ''}</span>
         </button>
+
         <button className="bg-[#00a65a] hover:bg-[#008d4c] text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition-all active:scale-95 font-medium">
           <CheckCircle className="w-4 h-4" />
           <span>批量快速/库存</span>
         </button>
-        <button className="bg-[#00c0ef] hover:bg-[#00add7] text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition-all active:scale-95 font-medium">
-          <Package className="w-4 h-4" />
-          <span>提交打包</span>
+
+        {/* 提交打包 */}
+        <button
+          onClick={handleSubmitPacking}
+          disabled={batchLoading === 'packing' || !hasSelection}
+          className="bg-[#00c0ef] hover:bg-[#00add7] disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition-all active:scale-95 font-medium"
+          title={hasSelection ? `提交打包选中的 ${selectedIds.length} 条` : '请先选择订单'}
+        >
+          {batchLoading === 'packing' ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Package className="w-4 h-4" />
+          )}
+          <span>提交打包{hasSelection ? ` (${selectedIds.length})` : ''}</span>
         </button>
-        
+
         {/* Disabled / Secondary Actions */}
         <div className="flex flex-wrap items-center gap-1">
           <button className="bg-gray-100 text-gray-400 border border-gray-200 px-3 py-1.5 rounded text-sm cursor-not-allowed">货物描述</button>
@@ -123,8 +221,36 @@ export const ActionToolbar = () => {
             <FileText className="w-4 h-4" />
             <span>获取面单</span>
           </button>
-          <button className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 px-3 py-1.5 rounded text-sm shadow-sm transition-all active:scale-95">设置异常</button>
-          <button className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 px-3 py-1.5 rounded text-sm shadow-sm transition-all active:scale-95">关闭作废</button>
+
+          {/* 设置异常 */}
+          <button
+            onClick={handleSetAbnormal}
+            disabled={batchLoading === 'abnormal' || !hasSelection}
+            className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded text-sm flex items-center gap-1 shadow-sm transition-all active:scale-95"
+            title={hasSelection ? `设置异常 ${selectedIds.length} 条` : '请先选择订单'}
+          >
+            {batchLoading === 'abnormal' ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <AlertTriangle className="w-3.5 h-3.5" />
+            )}
+            <span>设置异常{hasSelection ? ` (${selectedIds.length})` : ''}</span>
+          </button>
+
+          {/* 关闭作废 */}
+          <button
+            onClick={handleCloseOrders}
+            disabled={batchLoading === 'close' || !hasSelection}
+            className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded text-sm flex items-center gap-1 shadow-sm transition-all active:scale-95"
+            title={hasSelection ? `关闭作废 ${selectedIds.length} 条` : '请先选择订单'}
+          >
+            {batchLoading === 'close' ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <XCircle className="w-3.5 h-3.5" />
+            )}
+            <span>关闭作废{hasSelection ? ` (${selectedIds.length})` : ''}</span>
+          </button>
         </div>
 
         {/* View Controls on Right */}

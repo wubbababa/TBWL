@@ -17,11 +17,13 @@ import {
 import { useLayout } from './LayoutContext';
 import { usePathname, useRouter } from 'next/navigation';
 import { MENU_ITEMS } from '@/constants/menu';
+import { useAuth } from '@/lib/auth';
 
 // ─── Navbar ──────────────────────────────────────────────────────────────────
 
 export const Navbar = () => {
   const { toggleSidebar } = useLayout();
+  const { user, signOut } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const handleFullscreen = () => {
@@ -86,11 +88,14 @@ export const Navbar = () => {
           <div className="w-6 h-6 rounded-full bg-white/25 flex items-center justify-center">
             <User className="w-3.5 h-3.5" />
           </div>
-          <span className="text-xs font-medium hidden sm:inline">Wd2026</span>
+          <span className="text-xs font-medium hidden sm:inline">
+            {user?.email ?? '—'}
+          </span>
         </div>
 
         {/* Logout */}
         <button
+          onClick={signOut}
           className="p-1.5 rounded hover:bg-black/15 transition-colors"
           title="退出登录"
         >

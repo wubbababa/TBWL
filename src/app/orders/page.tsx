@@ -6,6 +6,8 @@ import { OrderTabs } from '@/components/orders/OrderTabs';
 import { FilterForm } from '@/components/orders/FilterForm';
 import { ActionToolbar } from '@/components/orders/ActionButtons';
 import { OrderTable } from '@/components/orders/OrderTable';
+import { OrderDetailModal } from '@/components/orders/OrderDetailModal';
+import type { Order } from '@/components/orders/OrderTable';
 
 /** All filter dimensions lifted to the page level so tabs, form, and table share the same state. */
 export interface OrderFilters {
@@ -43,8 +45,14 @@ const EMPTY_FILTERS: OrderFilters = {
 export default function OrdersPage() {
   const [filters, setFilters] = useState<OrderFilters>(EMPTY_FILTERS);
   const [queryTrigger, setQueryTrigger] = useState(0); // bumped → OrderTable re-fetches
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
+
+  // Order detail modal
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  // Checkbox selection
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   /** Merge partial filter updates. */
   const updateFilters = useCallback((patch: Partial<OrderFilters>) => {
@@ -73,6 +81,12 @@ export default function OrdersPage() {
   const handleRefresh = () => {
     window.location.reload();
   };
+
+  /** Called after any batch action or modal update — clear selection and re-fetch. */
+  const handleActionComplete = useCallback(() => {
+    setSelectedIds([]);
+    setQueryTrigger((n) => n + 1);
+  }, []);
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,10 +126,31 @@ export default function OrdersPage() {
       />
 
       {/* Actions Toolbar */}
-      <ActionToolbar />
+      <ActionToolbar
+        selectedIds={selectedIds}
+        onActionComplete={handleActionComplete}
+      />
 
       {/* Data Table */}
-      <OrderTable filters={filters} queryTrigger={queryTrigger} />
+      <OrderTable
+        filters={filters}
+        queryTrigger={queryTrigger}
+        onOrderClick={setSelectedOrder}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+      />
+
+      {/* Order Detail Modal */}
+      {selectedOrder && (
+        <OrderDetailModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          onUpdated={() => {
+            setSelectedOrder(null);
+            handleActionComplete();
+          }}
+        />
+      )}
     </div>
   );
 }
