@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Search, ChevronDown, User, X } from 'lucide-react';
 import { MENU_ITEMS } from '@/constants/menu';
+import { useLayout } from './LayoutContext';
 
 export const Sidebar = () => {
   const pathname = usePathname();
+  const { sidebarOpen } = useLayout();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -49,8 +51,13 @@ export const Sidebar = () => {
     forceOpen || openMenus[label] || false;
 
   return (
-    <aside className="w-64 bg-[#222d32] min-h-screen text-[#b8c7ce] flex flex-col shadow-xl z-20">
-      {/* User Info */}
+    <aside
+      className={`
+        bg-[#222d32] min-h-screen text-[#b8c7ce] flex flex-col shadow-xl z-20
+        transition-all duration-300 ease-in-out flex-shrink-0
+        ${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}
+      `}
+    >      {/* User Info */}
       <div className="p-4 flex items-center gap-3 border-b border-white/5">
         <div className="w-11 h-11 rounded-full bg-gray-500 overflow-hidden border-2 border-white/20 flex-shrink-0">
           <div className="w-full h-full flex items-center justify-center bg-[#374850]">
