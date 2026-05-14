@@ -167,18 +167,3 @@ export default function HomePage() {
     </div>
   );
 }
-`rounded-sm ${Math.random() > 0.4 ? 'bg-gray-800' : 'bg-transparent'}`}></div>
-                  ))}
-               </div>
-               <div className="absolute bottom-2 right-2 bg-white p-1 rounded-sm shadow-sm border border-gray-100">
-                  <div className="w-6 h-6 bg-[#3c8dbc] rounded-sm flex items-center justify-center text-[10px] text-white font-bold">TB</div>
-               </div>
-            </div>
-            
-            <p className="text-sm text-gray-600 italic">掃一掃關注</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
