@@ -34,7 +34,11 @@ export type MenuItem = {
 
 export const MENU_ITEMS: MenuItem[] = [
   { icon: Home, label: '首页', path: '/home', active: true },
-  { icon: Settings, label: '系统管理', path: '/system', hasSubmenu: true },
+  { icon: Settings, label: '系统管理', path: '/system', hasSubmenu: true,
+    submenu: [
+      { label: '账号管理', path: '/system/users' },
+    ]
+  },
   { icon: Package, label: '未关联包裹', path: '/unassociated' },
   { icon: ShoppingCart, label: '订单管理', path: '/orders' },
   { icon: AlertTriangle, label: '异常包裹', path: '/abnormal' },

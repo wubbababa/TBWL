@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Settings, 
   Users, 
-  Lock, 
   Bell, 
   Database,
   Globe,
@@ -13,13 +13,15 @@ import {
 } from 'lucide-react';
 
 export default function SystemSettingsPage() {
+  const router = useRouter();
+
   const sections = [
-    { icon: Users, label: '账号管理', desc: '管理系统登录账号与权限分配' },
-    { icon: ShieldCheck, label: '安全设置', desc: '修改密码、两步验证与登录日志' },
-    { icon: Bell, label: '通知中心', desc: '配置邮件、短信与站内信通知' },
-    { icon: Database, label: '数据备份', desc: '系统数据导出与备份计划' },
-    { icon: Globe, label: '通用设置', desc: '语言、时区与系统显示配置' },
-    { icon: Monitor, label: '操作日志', desc: '查看所有管理员的操作记录' },
+    { icon: Users, label: '账号管理', desc: '创建系统登录账号与权限分配', href: '/system/users' },
+    { icon: ShieldCheck, label: '安全设置', desc: '修改密码、两步验证与登录日志', href: null },
+    { icon: Bell, label: '通知中心', desc: '配置邮件、短信与站内信通知', href: null },
+    { icon: Database, label: '数据备份', desc: '系统数据导出与备份计划', href: null },
+    { icon: Globe, label: '通用设置', desc: '语言、时区与系统显示配置', href: null },
+    { icon: Monitor, label: '操作日志', desc: '查看所有管理员的操作记录', href: null },
   ];
 
   return (
@@ -37,17 +39,27 @@ export default function SystemSettingsPage() {
 
       {/* Settings Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sections.map((item) => (
+      {sections.map((item) => (
           <div 
             key={item.label}
-            className="p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group"
+            onClick={() => item.href && router.push(item.href)}
+            className={`p-5 bg-white rounded-xl border border-gray-200 shadow-sm transition-all group
+              ${item.href
+                ? 'hover:shadow-md hover:border-blue-300 cursor-pointer'
+                : 'opacity-60 cursor-not-allowed'
+              }`}
           >
             <div className="flex items-start gap-4">
-              <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-blue-50 transition-colors">
-                <item.icon className="w-6 h-6 text-gray-600 group-hover:text-blue-600" />
+              <div className={`p-3 bg-gray-50 rounded-lg transition-colors ${item.href ? 'group-hover:bg-blue-50' : ''}`}>
+                <item.icon className={`w-6 h-6 text-gray-600 transition-colors ${item.href ? 'group-hover:text-blue-600' : ''}`} />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-800 mb-1">{item.label}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-gray-800 mb-1">{item.label}</h3>
+                  {!item.href && (
+                    <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded font-medium mb-1">即将上线</span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
               </div>
             </div>
