@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   ShoppingCart, 
   ShoppingBag, 
@@ -8,10 +8,11 @@ import {
   CreditCard,
   ArrowRight
 } from 'lucide-react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
-const StatCard = ({ count, label, Icon, color, loading }: { count: string | number, label: string, Icon: any, color: string, loading?: boolean }) => (
-  <div className={`${color} rounded-sm shadow-sm text-white flex flex-col relative overflow-hidden group h-[110px]`}>
+const StatCard = ({ count, label, Icon, color, loading, href }: { count: string | number, label: string, Icon: any, color: string, loading?: boolean, href?: string }) => (
+  <Link href={href || '#'} className={`${color} rounded-sm shadow-sm text-white flex flex-col relative overflow-hidden group h-[110px] cursor-pointer`}>
     <div className="p-4 z-10">
       <h3 className="text-3xl font-bold">{loading ? '...' : count}</h3>
       <p className="text-sm opacity-90">{label}</p>
@@ -19,11 +20,11 @@ const StatCard = ({ count, label, Icon, color, loading }: { count: string | numb
     <div className="absolute top-2 right-2 opacity-20 transition-transform group-hover:scale-110">
       <Icon className="w-16 h-16" />
     </div>
-    <div className="mt-auto bg-black/10 py-1 px-4 text-center cursor-pointer hover:bg-black/20 transition-colors flex items-center justify-center gap-1 text-xs">
+    <div className="mt-auto bg-black/10 py-1 px-4 text-center hover:bg-black/20 transition-colors flex items-center justify-center gap-1 text-xs">
       <span>詳情</span>
       <ArrowRight className="w-3 h-3" />
     </div>
-  </div>
+  </Link>
 );
 
 export default function HomePage() {
@@ -33,7 +34,13 @@ export default function HomePage() {
     taiwan: 0,
     abnormal: 0
   });
+  const [accountStats, setAccountStats] = useState({
+    balance: 0,
+    totalExpense: 0,
+    totalRecharge: 0,
+  });
   const [loading, setLoading] = useState(true);
+  const [accountLoading, setAccountLoading] = useState(true);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -57,18 +64,38 @@ export default function HomePage() {
     }
   };
 
+  const fetchAccountStats = async () => {
+    setAccountLoading(true);
+    try {
+      const res = await fetch('/api/account-stats');
+      if (res.ok) {
+        const data = await res.json();
+        setAccountStats({
+          balance: data.balance,
+          totalExpense: data.totalExpense,
+          totalRecharge: data.totalRecharge,
+        });
+      }
+    } catch (error) {
+      console.error('Fetch account stats error:', error);
+    } finally {
+      setAccountLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
+    fetchAccountStats();
   }, []);
 
   return (
     <div className="flex flex-col gap-6">
       {/* Top Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard count={stats.all} label="所有订单" Icon={ShoppingCart} color="bg-[#00a65a]" loading={loading} />
-        <StatCard count={stats.pending} label="待處理" Icon={ShoppingBag} color="bg-[#0073b7]" loading={loading} />
-        <StatCard count={stats.taiwan} label="待入店" Icon={ShoppingCart} color="bg-[#f39c12]" loading={loading} />
-        <StatCard count={stats.abnormal} label="異常件" Icon={ShoppingCart} color="bg-[#dd4b39]" loading={loading} />
+        <StatCard count={stats.all} label="所有订单" Icon={ShoppingCart} color="bg-[#00a65a]" loading={loading} href="/orders" />
+        <StatCard count={stats.pending} label="待處理" Icon={ShoppingBag} color="bg-[#0073b7]" loading={loading} href="/orders" />
+        <StatCard count={stats.taiwan} label="待入店" Icon={ShoppingCart} color="bg-[#f39c12]" loading={loading} href="/taiwan/database" />
+        <StatCard count={stats.abnormal} label="異常件" Icon={ShoppingCart} color="bg-[#dd4b39]" loading={loading} href="/abnormal" />
       </div>
 
       {/* Main Grid: Announcement and Info */}
@@ -120,27 +147,29 @@ export default function HomePage() {
               <h2 className="text-lg font-bold text-gray-800">賬戶信息</h2>
             </div>
             <div className="p-4 space-y-4">
-              <div className="flex justify-between items-center text-sm">
+              <Link href="/funds/recharge" className="flex justify-between items-center text-sm hover:bg-gray-50 -mx-4 px-4 py-1 transition-colors rounded">
                 <span className="text-gray-600">賬戶余額:</span>
-                <span className="text-red-600 font-bold text-xl">0.000</span>
-              </div>
-              <div className="flex justify-between items-center text-sm text-gray-600 border-t border-gray-50 pt-3">
+                <span className="text-red-600 font-bold text-xl">{accountLoading ? '...' : accountStats.balance.toLocaleString('zh-CN', { minimumFractionDigits: 3 })}</span>
+              </Link>
+              <Link href="/funds/expense" className="flex justify-between items-center text-sm text-gray-600 border-t border-gray-50 pt-3 hover:bg-gray-50 -mx-4 px-4 py-1 transition-colors rounded">
                 <span>累計消費:</span>
-                <span className="font-medium text-gray-800">0.000</span>
-              </div>
-              <div className="flex justify-between items-center text-sm text-gray-600 border-t border-gray-50 pt-3">
+                <span className="font-medium text-gray-800">{accountLoading ? '...' : accountStats.totalExpense.toLocaleString('zh-CN', { minimumFractionDigits: 3 })}</span>
+              </Link>
+              <Link href="/funds/recharge" className="flex justify-between items-center text-sm text-gray-600 border-t border-gray-50 pt-3 hover:bg-gray-50 -mx-4 px-4 py-1 transition-colors rounded">
                 <span>累計充值:</span>
-                <span className="font-medium text-gray-800">0</span>
-              </div>
+                <span className="font-medium text-gray-800">{accountLoading ? '...' : accountStats.totalRecharge.toLocaleString('zh-CN', { minimumFractionDigits: 3 })}</span>
+              </Link>
               <div className="flex justify-between items-center text-sm text-gray-600 border-t border-gray-50 pt-3">
                 <span>打包貼單費:</span>
                 <span className="font-medium text-gray-800">0.00</span>
               </div>
               
-              <button className="w-full mt-4 flex items-center justify-center gap-2 py-2 bg-[#3c8dbc] text-white rounded hover:bg-[#367fa9] transition-colors text-sm">
-                <CreditCard className="w-4 h-4" />
-                <span>在线充值</span>
-              </button>
+              <Link href="/funds/recharge" className="block">
+                <button className="w-full mt-4 flex items-center justify-center gap-2 py-2 bg-[#3c8dbc] text-white rounded hover:bg-[#367fa9] transition-colors text-sm">
+                  <CreditCard className="w-4 h-4" />
+                  <span>在线充值</span>
+                </button>
+              </Link>
             </div>
           </div>
 
