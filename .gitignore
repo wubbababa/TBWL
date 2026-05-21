@@ -50,3 +50,5 @@ next-env.d.ts
 .codegraph/codegraph.db-wal
 .codegraph/codegraph.db-shm
 .codegraph/codegraph.db
+.playwright-mcp/console-2026-05-19T13-52-36-704Z.log
+.playwright-mcp/page-2026-05-19T13-52-43-531Z.yml

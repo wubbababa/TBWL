@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, FileUp, Search, RefreshCw, ShoppingCart, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { CreateInventoryApplyModal } from '@/components/inventory/CreateInventoryApplyModal';
 
 interface InventoryApply {
   id: string;
@@ -28,6 +29,7 @@ const statusStyle = (s: string) => {
 export default function InventoryApplyPage() {
   const [rows, setRows] = useState<InventoryApply[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [barcodeFilter, setBarcodeFilter] = useState('');
   const [skuFilter, setSkuFilter] = useState('');
@@ -51,6 +53,12 @@ export default function InventoryApplyPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {showCreateModal && (
+        <CreateInventoryApplyModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={fetchRows}
+        />
+      )}
       <div className="bg-white rounded shadow-sm border border-gray-200">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <ShoppingCart className="w-5 h-5 text-gray-700" />
@@ -89,7 +97,7 @@ export default function InventoryApplyPage() {
               <button onClick={fetchRows} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <Search className="w-4 h-4" /><span>查询</span>
               </button>
-              <button className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
+              <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <Plus className="w-4 h-4" /><span>申请入库</span>
               </button>
               <button className="flex items-center gap-1.5 h-9 px-4 bg-[#dd4b39] text-white text-sm rounded hover:bg-[#d73925]">

@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { CreateInventoryProductModal } from '@/components/inventory/CreateInventoryProductModal';
 
 interface InventoryProduct {
   id: string;
@@ -34,6 +35,7 @@ export default function InventoryProductsPage() {
   const [products, setProducts] = useState<InventoryProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState({
     id: '',
     sku: '',
@@ -81,6 +83,12 @@ export default function InventoryProductsPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {showCreateModal && (
+        <CreateInventoryProductModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={fetchProducts}
+        />
+      )}
       {/* Warning Notice */}
       <div className="text-red-600 text-[13px] space-y-1 font-medium bg-transparent px-1">
         <p>如積分不足導致欠费,產品將在7天後销毁库存</p>
@@ -95,7 +103,8 @@ export default function InventoryProductsPage() {
         </div>
         
         <div className="p-4 flex flex-wrap gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 transition-colors">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 transition-colors"
+            onClick={() => setShowCreateModal(true)}>
             <Plus className="w-4 h-4" />
             <span>创建商品</span>
           </button>

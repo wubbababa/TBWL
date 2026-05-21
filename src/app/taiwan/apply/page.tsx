@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, FileUp, Search, RefreshCw, ChevronDown, ChevronUp, Download, RotateCcw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { CreateTaiwanApplyModal } from '@/components/taiwan/CreateTaiwanApplyModal';
 
 interface TaiwanApply {
   id: string;
@@ -25,6 +26,7 @@ const statusStyle = (s: string) => {
 export default function TaiwanApplyPage() {
   const [rows, setRows] = useState<TaiwanApply[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [memberFilter, setMemberFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -42,6 +44,12 @@ export default function TaiwanApplyPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {showCreateModal && (
+        <CreateTaiwanApplyModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={fetchRows}
+        />
+      )}
       <div className="bg-white rounded shadow-sm border border-gray-200">
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
           <div className="flex items-center gap-2">
@@ -104,7 +112,7 @@ export default function TaiwanApplyPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3c8dbc] text-white text-sm rounded hover:bg-[#367fa9]">
+        <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3c8dbc] text-white text-sm rounded hover:bg-[#367fa9]">
           <Plus className="w-4 h-4" /><span>申请仓儲發貨</span>
         </button>
         <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
