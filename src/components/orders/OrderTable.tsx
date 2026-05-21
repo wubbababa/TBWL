@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { RefreshCw, Maximize2, List, AlertCircle } from 'lucide-react';
+import { RefreshCw, Maximize2, List, AlertCircle, Trash2, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { OrderFilters } from '@/app/orders/page';
 
@@ -56,6 +56,8 @@ export const OrderTable = ({
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   const fetchOrders = async (f: OrderFilters) => {
@@ -156,6 +158,41 @@ export const OrderTable = ({
       onSelectionChange(selectedIds.filter((s) => s !== id));
     } else {
       onSelectionChange([...selectedIds, id]);
+    }
+  };
+
+  /** 单行删除 */
+  const handleDeleteRow = async (id: string) => {
+    setDeletingId(id);
+    try {
+      // 用 select() 让 Supabase 返回被删除的行，
+      // 若 RLS 拦截则返回空数组而非报错，可以此判断是否真正删除
+      const { data: deleted, error: delError } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', id)
+        .select('id');
+
+      if (delError) throw delError;
+
+      if (!deleted || deleted.length === 0) {
+        throw new Error(
+          '删除被拒绝（RLS 策略限制）。请在 Supabase 控制台执行 supabase/fix_orders_rls.sql 修复权限。',
+        );
+      }
+
+      if (mountedRef.current) {
+        setOrders((prev) => prev.filter((o) => String(o.id) !== id));
+        onSelectionChange(selectedIds.filter((s) => s !== id));
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '删除失败';
+      alert('删除失败：' + msg);
+    } finally {
+      if (mountedRef.current) {
+        setDeletingId(null);
+        setConfirmDeleteId(null);
+      }
     }
   };
 
@@ -273,12 +310,42 @@ export const OrderTable = ({
                       {order.remarks || '-'}
                     </td>
                     <td className="px-4 py-3 border-r border-gray-200">
-                      <button
-                        onClick={() => onOrderClick(order)}
-                        className="text-[#3c8dbc] hover:text-[#367fa9] font-bold hover:underline"
-                      >
-                        详情
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => onOrderClick(order)}
+                          className="text-[#3c8dbc] hover:text-[#367fa9] font-bold hover:underline text-sm"
+                        >
+                          详情
+                        </button>
+                        <span className="text-gray-200">|</span>
+                        {confirmDeleteId === rowId ? (
+                          <span className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleDeleteRow(rowId)}
+                              disabled={deletingId === rowId}
+                              className="text-red-500 hover:text-red-700 text-xs font-bold"
+                            >
+                              {deletingId === rowId ? (
+                                <Loader2 className="w-3 h-3 animate-spin inline" />
+                              ) : '确认'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-gray-400 hover:text-gray-600 text-xs"
+                            >
+                              取消
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteId(rowId)}
+                            className="text-red-400 hover:text-red-600 transition-colors"
+                            title="删除此订单"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 border-r border-gray-200">
                       <span

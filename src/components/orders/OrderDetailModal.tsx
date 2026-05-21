@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, Edit2, Save, RotateCcw, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export interface Order {
@@ -55,13 +55,25 @@ interface Props {
   order: Order;
   onClose: () => void;
   onUpdated: () => void;
+  /** 删除成功后回调（可选，不传则不显示删除按钮） */
+  onDeleted?: () => void;
 }
 
-export const OrderDetailModal = ({ order, onClose, onUpdated }: Props) => {
+export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props) => {
+  // 编辑模式开关
+  const [editMode, setEditMode] = useState(false);
+
+  // 可编辑字段
+  const [orderNumber, setOrderNumber] = useState(order.order_number);
+  const [shippingMethod, setShippingMethod] = useState(order.shipping_method);
+  const [productList, setProductList] = useState(order.product_list);
+  const [remarks, setRemarks] = useState(order.remarks ?? '');
   const [selectedStatus, setSelectedStatus] = useState(order.status);
   const [trackingInfo, setTrackingInfo] = useState(order.tracking_info ?? '');
-  const [savingStatus, setSavingStatus] = useState(false);
-  const [savingTracking, setSavingTracking] = useState(false);
+
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
 
   // Auto-dismiss toast after 3 s
@@ -74,49 +86,90 @@ export const OrderDetailModal = ({ order, onClose, onUpdated }: Props) => {
   // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        if (confirmDelete) { setConfirmDelete(false); return; }
+        if (editMode) { handleCancelEdit(); return; }
+        onClose();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [onClose, editMode, confirmDelete]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showToast = (type: Toast['type'], message: string) => {
     setToast({ type, message });
   };
 
-  const handleSaveStatus = async () => {
-    setSavingStatus(true);
+  const handleCancelEdit = () => {
+    setOrderNumber(order.order_number);
+    setShippingMethod(order.shipping_method);
+    setProductList(order.product_list);
+    setRemarks(order.remarks ?? '');
+    setSelectedStatus(order.status);
+    setTrackingInfo(order.tracking_info ?? '');
+    setEditMode(false);
+  };
+
+  /** 保存所有修改 */
+  const handleSaveAll = async () => {
+    if (!orderNumber.trim()) {
+      showToast('error', '订单编号不能为空');
+      return;
+    }
+    setSaving(true);
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ status: selectedStatus, updated_at: new Date().toISOString() })
+        .update({
+          order_number: orderNumber.trim(),
+          shipping_method: shippingMethod.trim(),
+          product_list: productList.trim(),
+          remarks: remarks.trim() || null,
+          status: selectedStatus,
+          tracking_info: trackingInfo.trim(),
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', order.id);
       if (error) throw error;
-      showToast('success', '状态已更新');
+      showToast('success', '订单已保存');
+      setEditMode(false);
       onUpdated();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '更新失败';
+      const msg = err instanceof Error ? err.message : '保存失败';
       showToast('error', msg);
     } finally {
-      setSavingStatus(false);
+      setSaving(false);
     }
   };
 
-  const handleSaveTracking = async () => {
-    setSavingTracking(true);
+  /** 删除订单 */
+  const handleDelete = async () => {
+    setDeleting(true);
     try {
-      const { error } = await supabase
+      const { data: deleted, error } = await supabase
         .from('orders')
-        .update({ tracking_info: trackingInfo, updated_at: new Date().toISOString() })
-        .eq('id', order.id);
+        .delete()
+        .eq('id', order.id)
+        .select('id');
+
       if (error) throw error;
-      showToast('success', '物流信息已更新');
-      onUpdated();
+
+      if (!deleted || deleted.length === 0) {
+        throw new Error(
+          '删除被拒绝（RLS 策略限制）。请在 Supabase 控制台执行 supabase/fix_orders_rls.sql 修复权限。',
+        );
+      }
+
+      showToast('success', '订单已删除');
+      setTimeout(() => {
+        onClose();
+        onDeleted?.();
+      }, 800);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '更新失败';
+      const msg = err instanceof Error ? err.message : '删除失败';
       showToast('error', msg);
-    } finally {
-      setSavingTracking(false);
+      setDeleting(false);
+      setConfirmDelete(false);
     }
   };
 
@@ -127,16 +180,16 @@ export const OrderDetailModal = ({ order, onClose, onUpdated }: Props) => {
         year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit',
       });
-    } catch {
-      return iso;
-    }
+    } catch { return iso; }
   };
 
+  const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#3c8dbc]/40 focus:border-[#3c8dbc] w-full bg-white';
+  const readonlyCls = 'text-gray-800 text-sm break-all';
+
   return (
-    /* Overlay */
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && !editMode) onClose(); }}
     >
       {/* Toast */}
       {toast && (
@@ -153,56 +206,137 @@ export const OrderDetailModal = ({ order, onClose, onUpdated }: Props) => {
         </div>
       )}
 
+      {/* 删除确认对话框 */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-red-100 p-2 rounded-full">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-base font-bold text-gray-800">确认删除</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-1">
+              确定要删除订单 <span className="font-bold text-gray-800">{order.order_number}</span> 吗？
+            </p>
+            <p className="text-xs text-red-500 mb-5">此操作不可撤销。</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+                className="px-4 py-1.5 rounded border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-1.5 rounded bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {deleting ? '删除中…' : '确认删除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal card */}
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
-          <h2 className="text-base font-bold text-gray-800">
-            订单详情 — <span className="text-[#3c8dbc]">{order.order_number}</span>
+          <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+            {editMode
+              ? <><Edit2 className="w-4 h-4 text-[#3c8dbc]" /><span>编辑订单</span></>
+              : <span>订单详情</span>}
+            <span className="text-[#3c8dbc]">— {order.order_number}</span>
           </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 rounded transition-colors text-gray-500 hover:text-gray-700"
-            aria-label="关闭"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {!editMode && (
+              <>
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3c8dbc] hover:bg-[#367fa9] text-white rounded text-xs font-medium transition-colors"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  编辑
+                </button>
+                {onDeleted && (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-medium transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    删除
+                  </button>
+                )}
+              </>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-gray-100 rounded transition-colors text-gray-500 hover:text-gray-700"
+              aria-label="关闭"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="px-6 py-5 flex flex-col gap-6">
-          {/* Basic info */}
+          {/* 基本信息 */}
           <section>
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">基本信息</h3>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              <InfoRow label="订单编号" value={order.order_number} />
-              <InfoRow label="物流方式" value={order.shipping_method} />
-              <InfoRow label="创建时间" value={formatDate(order.created_at)} />
-              <InfoRow label="更新时间" value={formatDate(order.updated_at)} />
-              <div className="col-span-2">
-                <InfoRow label="商品清单" value={order.product_list} />
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+              {/* 订单编号 */}
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-400 text-xs">订单编号</label>
+                {editMode
+                  ? <input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} className={inputCls} placeholder="订单编号" />
+                  : <span className={readonlyCls}>{order.order_number}</span>}
               </div>
-              <div className="col-span-2">
-                <InfoRow label="备注/留言" value={order.remarks || '-'} />
+              {/* 物流方式 */}
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-400 text-xs">物流方式</label>
+                {editMode
+                  ? <input value={shippingMethod} onChange={(e) => setShippingMethod(e.target.value)} className={inputCls} placeholder="物流方式" />
+                  : <span className={readonlyCls}>{order.shipping_method}</span>}
+              </div>
+              {/* 创建时间（只读） */}
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-400 text-xs">创建时间</label>
+                <span className={readonlyCls}>{formatDate(order.created_at)}</span>
+              </div>
+              {/* 更新时间（只读） */}
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-400 text-xs">更新时间</label>
+                <span className={readonlyCls}>{formatDate(order.updated_at)}</span>
+              </div>
+              {/* 商品清单 */}
+              <div className="col-span-2 flex flex-col gap-1">
+                <label className="text-gray-400 text-xs">商品清单</label>
+                {editMode
+                  ? <textarea value={productList} onChange={(e) => setProductList(e.target.value)} rows={3} className={`${inputCls} resize-none`} placeholder="商品清单" />
+                  : <span className={readonlyCls}>{order.product_list}</span>}
+              </div>
+              {/* 备注/留言 */}
+              <div className="col-span-2 flex flex-col gap-1">
+                <label className="text-gray-400 text-xs">备注/留言</label>
+                {editMode
+                  ? <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} className={`${inputCls} resize-none`} placeholder="备注（选填）" />
+                  : <span className={readonlyCls}>{order.remarks || '-'}</span>}
               </div>
             </div>
           </section>
 
           <hr className="border-gray-100" />
 
-          {/* Status change */}
+          {/* 状态管理 */}
           <section>
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">状态管理</h3>
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500 w-20 shrink-0">当前状态</span>
-                <span
-                  className={`px-2.5 py-0.5 rounded border text-xs font-bold ${statusBadgeClass(order.status)}`}
-                >
-                  {order.status}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500 w-20 shrink-0">修改为</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500 w-20 shrink-0">
+                {editMode ? '修改状态' : '当前状态'}
+              </span>
+              {editMode ? (
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
@@ -212,43 +346,55 @@ export const OrderDetailModal = ({ order, onClose, onUpdated }: Props) => {
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <button
-                  onClick={handleSaveStatus}
-                  disabled={savingStatus || selectedStatus === order.status}
-                  className="bg-[#3c8dbc] hover:bg-[#367fa9] disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded text-sm font-medium transition-colors"
-                >
-                  {savingStatus ? '保存中…' : '保存状态'}
-                </button>
-              </div>
+              ) : (
+                <span className={`px-2.5 py-0.5 rounded border text-xs font-bold ${statusBadgeClass(order.status)}`}>
+                  {order.status}
+                </span>
+              )}
             </div>
           </section>
 
           <hr className="border-gray-100" />
 
-          {/* Tracking info */}
+          {/* 货况信息 */}
           <section>
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">货况信息 / 物流单号</h3>
-            <div className="flex flex-col gap-3">
+            {editMode ? (
               <input
                 type="text"
                 value={trackingInfo}
                 onChange={(e) => setTrackingInfo(e.target.value)}
                 placeholder="输入物流单号或货况信息"
-                className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3c8dbc]/40 focus:border-[#3c8dbc] w-full font-mono"
+                className={`${inputCls} font-mono`}
               />
-              <div>
-                <button
-                  onClick={handleSaveTracking}
-                  disabled={savingTracking}
-                  className="bg-[#3c8dbc] hover:bg-[#367fa9] disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded text-sm font-medium transition-colors"
-                >
-                  {savingTracking ? '保存中…' : '保存物流'}
-                </button>
-              </div>
-            </div>
+            ) : (
+              <span className="text-sm text-gray-800 font-mono">
+                {order.tracking_info || <span className="text-gray-400 italic">暂无物流信息</span>}
+              </span>
+            )}
           </section>
+
+          {/* 编辑模式操作按钮 */}
+          {editMode && (
+            <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+              <button
+                onClick={handleSaveAll}
+                disabled={saving}
+                className="flex items-center gap-1.5 bg-[#3c8dbc] hover:bg-[#367fa9] disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2 rounded text-sm font-medium transition-colors"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? '保存中…' : '保存修改'}
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                disabled={saving}
+                className="flex items-center gap-1.5 border border-gray-300 hover:bg-gray-50 text-gray-600 px-4 py-2 rounded text-sm font-medium transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                取消
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

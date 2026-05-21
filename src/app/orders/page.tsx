@@ -149,6 +149,10 @@ export default function OrdersPage() {
             setSelectedOrder(null);
             handleActionComplete();
           }}
+          onDeleted={() => {
+            setSelectedOrder(null);
+            handleActionComplete();
+          }}
         />
       )}
     </div>

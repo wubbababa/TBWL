@@ -84,11 +84,20 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
 
     setBatchLoading('delete');
     try {
-      const { error } = await supabase
+      const { data: deleted, error } = await supabase
         .from('orders')
         .delete()
-        .in('id', selectedIds);
+        .in('id', selectedIds)
+        .select('id');
+
       if (error) throw error;
+
+      if (!deleted || deleted.length === 0) {
+        throw new Error(
+          '删除被拒绝（RLS 策略限制）。请在 Supabase 控制台执行 supabase/fix_orders_rls.sql 修复权限。',
+        );
+      }
+
       onActionComplete();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '未知错误';
