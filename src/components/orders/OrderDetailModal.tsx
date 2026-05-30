@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, CheckCircle, AlertCircle, Edit2, Save, RotateCcw, Trash2, Upload, Download, Eye, FileText, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
-  uploadWaybill, downloadWaybill, previewWaybill, removeWaybill,
+  uploadWaybill, downloadWaybill, removeWaybill,
   validateWaybillFile, ALLOWED_WAYBILL_EXTENSIONS,
 } from '@/lib/waybill';
+import { WaybillPreviewModal } from './WaybillPreviewModal';
 
 export interface Order {
   id: string | number;
@@ -87,7 +88,8 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
   const [waybillPath, setWaybillPath] = useState(order.waybill_path ?? null);
   const [waybillFilename, setWaybillFilename] = useState(order.waybill_filename ?? null);
   const [waybillUploadedAt, setWaybillUploadedAt] = useState(order.waybill_uploaded_at ?? null);
-  const [waybillBusy, setWaybillBusy] = useState<null | 'upload' | 'download' | 'preview' | 'remove'>(null);
+  const [waybillBusy, setWaybillBusy] = useState<null | 'upload' | 'download' | 'remove'>(null);
+  const [waybillPreviewOpen, setWaybillPreviewOpen] = useState(false);
   const waybillInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-dismiss toast after 3 s
@@ -242,15 +244,8 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
     }
   };
 
-  const handleWaybillPreview = async () => {
-    setWaybillBusy('preview');
-    try {
-      await previewWaybill(waybillOrder);
-    } catch (err: unknown) {
-      showToast('error', err instanceof Error ? err.message : '预览失败');
-    } finally {
-      setWaybillBusy(null);
-    }
+  const handleWaybillPreview = () => {
+    setWaybillPreviewOpen(true);
   };
 
   const handleWaybillRemove = async () => {
@@ -504,7 +499,7 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
                     disabled={waybillBusy !== null}
                     className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 hover:bg-gray-50 text-gray-600 rounded text-xs font-medium transition-colors disabled:opacity-50"
                   >
-                    {waybillBusy === 'preview' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                    <Eye className="w-3.5 h-3.5" />
                     预览
                   </button>
                   <button
@@ -574,6 +569,19 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
           )}
         </div>
       </div>
+
+      {/* 面单预览弹窗 */}
+      {waybillPreviewOpen && waybillPath && (
+        <WaybillPreviewModal
+          order={{
+            id: order.id,
+            order_number: order.order_number,
+            waybill_path: waybillPath,
+            waybill_filename: waybillFilename,
+          }}
+          onClose={() => setWaybillPreviewOpen(false)}
+        />
+      )}
     </div>
   );
 };

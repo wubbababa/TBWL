@@ -8,12 +8,7 @@ import {
   Archive, 
   Layers, 
   Wallet, 
-  LogOut,
   MapPin,
-  ClipboardList,
-  CreditCard,
-  FileText,
-  UserPlus,
   type LucideIcon
 } from 'lucide-react';
 
@@ -91,5 +86,4 @@ export const MENU_ITEMS: MenuItem[] = [
       { label: '扫码登记', path: '/funds/scan-register' },
     ]
   },
-  { icon: LogOut, label: '安全退出', path: '/logout' },
 ];

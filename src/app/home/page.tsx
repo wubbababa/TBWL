@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import ProfitTrendChart from '@/components/home/ProfitTrendChart';
 
 const StatCard = ({ count, label, Icon, color, loading, href }: { count: string | number, label: string, Icon: any, color: string, loading?: boolean, href?: string }) => (
   <Link href={href || '#'} className={`${color} rounded-sm shadow-sm text-white flex flex-col relative overflow-hidden group h-[110px] cursor-pointer`}>
@@ -90,6 +91,9 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* 近七天利润折线图 */}
+      <ProfitTrendChart />
+
       {/* Top Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard count={stats.all} label="所有订单" Icon={ShoppingCart} color="bg-[#00a65a]" loading={loading} href="/orders" />

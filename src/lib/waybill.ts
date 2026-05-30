@@ -136,6 +136,18 @@ export async function downloadWaybill(order: OrderWaybillFields): Promise<void> 
   document.body.removeChild(a);
 }
 
+/** 面单文件的可预览类型。 */
+export type WaybillKind = 'image' | 'pdf' | 'other';
+
+/** 根据扩展名判断面单的预览类型。 */
+export function getWaybillKind(filenameOrPath?: string | null): WaybillKind {
+  if (!filenameOrPath) return 'other';
+  const ext = getExtension(filenameOrPath);
+  if (ext === '.pdf') return 'pdf';
+  if (['.png', '.jpg', '.jpeg'].includes(ext)) return 'image';
+  return 'other';
+}
+
 /** 在新标签页预览面单（不触发下载）。 */
 export async function previewWaybill(order: OrderWaybillFields): Promise<void> {
   if (!order.waybill_path) throw new Error('该订单暂无面单');
