@@ -9,6 +9,8 @@ import {
 import { supabase } from '@/lib/supabase';
 import { generateCsv, downloadCsv, generateTemplateCsv, EXPORT_COLUMNS, IMPORT_COLUMNS } from '@/lib/csv';
 import { CsvImportModal } from './CsvImportModal';
+import { WaybillUploadModal } from './WaybillUploadModal';
+import { downloadWaybillsBatch, type OrderWaybillFields } from '@/lib/waybill';
 
 // lucide-react v1 may not export CloudSync — use a fallback
 let CloudSync: React.ComponentType<{ className?: string }>;
@@ -28,7 +30,11 @@ interface Props {
 
 export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
   const [importOpen, setImportOpen] = useState(false);
+  const [waybillOpen, setWaybillOpen] = useState(false);
+  /** 上传面单时是否限制在勾选的订单范围内。 */
+  const [waybillRestricted, setWaybillRestricted] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [downloadingWaybills, setDownloadingWaybills] = useState(false);
   const [batchLoading, setBatchLoading] = useState<string | null>(null); // which action is running
 
   /* ---- Export ---- */
@@ -63,6 +69,45 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
   /* ---- Import complete ---- */
   const handleImportComplete = () => {
     onActionComplete();
+  };
+
+  /* ---- 批量上传面单 ---- */
+  const openWaybillUpload = (restricted: boolean) => {
+    if (restricted && !requireSelection()) return;
+    setWaybillRestricted(restricted);
+    setWaybillOpen(true);
+  };
+
+  const handleWaybillUploadComplete = () => {
+    setWaybillOpen(false);
+    onActionComplete();
+  };
+
+  /* ---- 批量获取（下载）面单 ---- */
+  const handleDownloadWaybills = async () => {
+    if (!requireSelection()) return;
+    setDownloadingWaybills(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, order_number, waybill_path, waybill_filename')
+        .in('id', selectedIds);
+      if (error) throw error;
+
+      const orders = (data ?? []) as OrderWaybillFields[];
+      const { downloaded, skipped } = await downloadWaybillsBatch(orders);
+
+      if (downloaded === 0) {
+        alert('选中的订单均无面单可下载。');
+      } else if (skipped.length > 0) {
+        alert(`已下载 ${downloaded} 个面单。\n以下订单暂无面单，已跳过：\n${skipped.join('、')}`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      alert('获取面单失败：' + msg);
+    } finally {
+      setDownloadingWaybills(false);
+    }
   };
 
   /* ---- Guard: require selection ---- */
@@ -164,7 +209,10 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
           <FileUp className="w-4 h-4 text-black" />
           <span>Excel批量导入订单</span>
         </button>
-        <button className="bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1.5 font-bold shadow-sm transition-all active:scale-95">
+        <button
+          onClick={() => openWaybillUpload(false)}
+          className="bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1.5 font-bold shadow-sm transition-all active:scale-95"
+        >
           <FileUp className="w-4 h-4 text-black" />
           <span>批量上传面单</span>
         </button>
@@ -225,9 +273,26 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
         <div className="flex flex-wrap items-center gap-1">
           <button className="bg-gray-100 text-gray-400 border border-gray-200 px-3 py-1.5 rounded text-sm cursor-not-allowed">货物描述</button>
           <button className="bg-gray-100 text-gray-400 border border-gray-200 px-3 py-1.5 rounded text-sm cursor-not-allowed">头程标签</button>
-          <button className="bg-gray-100 text-gray-400 border border-gray-200 px-3 py-1.5 rounded text-sm cursor-not-allowed">上传面单</button>
-          <button className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1 shadow-sm transition-all active:scale-95">
-            <FileText className="w-4 h-4" />
+          <button
+            onClick={() => openWaybillUpload(true)}
+            disabled={!hasSelection}
+            className="bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed px-3 py-1.5 rounded text-sm flex items-center gap-1 shadow-sm transition-all active:scale-95"
+            title={hasSelection ? `为选中的 ${selectedIds.length} 条上传面单` : '请先选择订单'}
+          >
+            <FileUp className="w-3.5 h-3.5" />
+            <span>上传面单{hasSelection ? ` (${selectedIds.length})` : ''}</span>
+          </button>
+          <button
+            onClick={handleDownloadWaybills}
+            disabled={downloadingWaybills || !hasSelection}
+            className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded text-sm flex items-center gap-1 shadow-sm transition-all active:scale-95"
+            title={hasSelection ? `下载选中的 ${selectedIds.length} 条面单` : '请先选择订单'}
+          >
+            {downloadingWaybills ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileText className="w-4 h-4" />
+            )}
             <span>获取面单</span>
           </button>
 
@@ -283,6 +348,14 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
       <CsvImportModal
         onClose={() => setImportOpen(false)}
         onImportComplete={handleImportComplete}
+      />
+    )}
+
+    {waybillOpen && (
+      <WaybillUploadModal
+        onClose={() => setWaybillOpen(false)}
+        onUploadComplete={handleWaybillUploadComplete}
+        restrictToIds={waybillRestricted ? selectedIds : undefined}
       />
     )}
     </>

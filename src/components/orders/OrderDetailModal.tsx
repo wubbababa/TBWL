@@ -1,8 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, Edit2, Save, RotateCcw, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, CheckCircle, AlertCircle, Edit2, Save, RotateCcw, Trash2, Upload, Download, Eye, FileText, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import {
+  uploadWaybill, downloadWaybill, previewWaybill, removeWaybill,
+  validateWaybillFile, ALLOWED_WAYBILL_EXTENSIONS,
+} from '@/lib/waybill';
 
 export interface Order {
   id: string | number;
@@ -14,6 +18,9 @@ export interface Order {
   tracking_info: string;
   created_at: string;
   updated_at?: string;
+  waybill_path?: string | null;
+  waybill_filename?: string | null;
+  waybill_uploaded_at?: string | null;
 }
 
 const ALL_STATUSES = [
@@ -75,6 +82,13 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+
+  // 面单状态
+  const [waybillPath, setWaybillPath] = useState(order.waybill_path ?? null);
+  const [waybillFilename, setWaybillFilename] = useState(order.waybill_filename ?? null);
+  const [waybillUploadedAt, setWaybillUploadedAt] = useState(order.waybill_uploaded_at ?? null);
+  const [waybillBusy, setWaybillBusy] = useState<null | 'upload' | 'download' | 'preview' | 'remove'>(null);
+  const waybillInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-dismiss toast after 3 s
   useEffect(() => {
@@ -173,7 +187,90 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
     }
   };
 
-  const formatDate = (iso?: string) => {
+  /* ---- 面单：当前订单的快照对象 ---- */
+  const waybillOrder = {
+    id: order.id,
+    order_number: order.order_number,
+    waybill_path: waybillPath,
+    waybill_filename: waybillFilename,
+  };
+
+  /** 选择文件后上传 */
+  const handleWaybillSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const validationError = validateWaybillFile(file);
+    if (validationError) {
+      showToast('error', validationError);
+      return;
+    }
+
+    setWaybillBusy('upload');
+    try {
+      await uploadWaybill(waybillOrder, file);
+      // 重新读取最新面单字段
+      const { data } = await supabase
+        .from('orders')
+        .select('waybill_path, waybill_filename, waybill_uploaded_at')
+        .eq('id', order.id)
+        .single();
+      if (data) {
+        setWaybillPath(data.waybill_path);
+        setWaybillFilename(data.waybill_filename);
+        setWaybillUploadedAt(data.waybill_uploaded_at);
+      }
+      showToast('success', '面单上传成功');
+      onUpdated();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '上传失败';
+      showToast('error', msg);
+    } finally {
+      setWaybillBusy(null);
+    }
+  };
+
+  const handleWaybillDownload = async () => {
+    setWaybillBusy('download');
+    try {
+      await downloadWaybill(waybillOrder);
+    } catch (err: unknown) {
+      showToast('error', err instanceof Error ? err.message : '下载失败');
+    } finally {
+      setWaybillBusy(null);
+    }
+  };
+
+  const handleWaybillPreview = async () => {
+    setWaybillBusy('preview');
+    try {
+      await previewWaybill(waybillOrder);
+    } catch (err: unknown) {
+      showToast('error', err instanceof Error ? err.message : '预览失败');
+    } finally {
+      setWaybillBusy(null);
+    }
+  };
+
+  const handleWaybillRemove = async () => {
+    if (!window.confirm('确定要删除该订单的面单吗？')) return;
+    setWaybillBusy('remove');
+    try {
+      await removeWaybill(waybillOrder);
+      setWaybillPath(null);
+      setWaybillFilename(null);
+      setWaybillUploadedAt(null);
+      showToast('success', '面单已删除');
+      onUpdated();
+    } catch (err: unknown) {
+      showToast('error', err instanceof Error ? err.message : '删除失败');
+    } finally {
+      setWaybillBusy(null);
+    }
+  };
+
+  const formatDate = (iso?: string | null) => {
     if (!iso) return '-';
     try {
       return new Date(iso).toLocaleString('zh-CN', {
@@ -371,6 +468,86 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
               <span className="text-sm text-gray-800 font-mono">
                 {order.tracking_info || <span className="text-gray-400 italic">暂无物流信息</span>}
               </span>
+            )}
+          </section>
+
+          <hr className="border-gray-100" />
+
+          {/* 面单 */}
+          <section>
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">面单</h3>
+            <input
+              ref={waybillInputRef}
+              type="file"
+              accept={ALLOWED_WAYBILL_EXTENSIONS.join(',')}
+              className="hidden"
+              onChange={handleWaybillSelected}
+            />
+            {waybillPath ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded px-3 py-2.5">
+                  <div className="bg-[#3c8dbc]/10 p-2 rounded">
+                    <FileText className="w-5 h-5 text-[#3c8dbc]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-800 font-medium truncate" title={waybillFilename ?? ''}>
+                      {waybillFilename || '面单文件'}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      上传于 {formatDate(waybillUploadedAt)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleWaybillPreview}
+                    disabled={waybillBusy !== null}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 hover:bg-gray-50 text-gray-600 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    {waybillBusy === 'preview' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                    预览
+                  </button>
+                  <button
+                    onClick={handleWaybillDownload}
+                    disabled={waybillBusy !== null}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3c8dbc] hover:bg-[#367fa9] text-white rounded text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    {waybillBusy === 'download' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                    下载
+                  </button>
+                  <button
+                    onClick={() => waybillInputRef.current?.click()}
+                    disabled={waybillBusy !== null}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 hover:bg-gray-50 text-gray-600 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    {waybillBusy === 'upload' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    重新上传
+                  </button>
+                  <button
+                    onClick={handleWaybillRemove}
+                    disabled={waybillBusy !== null}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 text-red-500 hover:bg-red-50 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    {waybillBusy === 'remove' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    删除
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-400 italic">暂无面单</span>
+                <button
+                  onClick={() => waybillInputRef.current?.click()}
+                  disabled={waybillBusy !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3c8dbc] hover:bg-[#367fa9] text-white rounded text-xs font-medium transition-colors disabled:opacity-50"
+                >
+                  {waybillBusy === 'upload' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  上传面单
+                </button>
+                <span className="text-xs text-gray-400">
+                  支持 {ALLOWED_WAYBILL_EXTENSIONS.join('、')}
+                </span>
+              </div>
             )}
           </section>
 

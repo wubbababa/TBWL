@@ -15,6 +15,9 @@ export interface Order {
   tracking_info: string;
   created_at: string;
   updated_at?: string;
+  waybill_path?: string | null;
+  waybill_filename?: string | null;
+  waybill_uploaded_at?: string | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
