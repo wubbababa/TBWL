@@ -478,7 +478,7 @@ export const OrderTable = ({
                         aria-label={`选择订单 ${order.order_number}`}
                       />
                     </td>
-                    <td className="px-4 py-3 border-r border-gray-200 font-medium text-blue-600 cursor-pointer hover:underline">
+                    <td className="px-4 py-3 border-r border-gray-200 font-medium text-blue-600">
                       {order.order_number}
                     </td>
                     <td className="px-4 py-3 border-r border-gray-200">

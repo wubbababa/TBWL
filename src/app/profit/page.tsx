@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Search, RefreshCw, Maximize, LayoutGrid, ExternalLink, ChevronDown, Calendar, Database } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, Calendar, Database } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
 
@@ -48,11 +48,11 @@ export default function OrderProfitPage() {
 
   const columns: Column<OrderProfit>[] = [
     { key: 'order_number', title: '订单编号', render: r => <span className="text-blue-600 text-xs font-mono">{r.order_number}</span> },
-    { key: 'sales_amount', title: '销售金额(TWD)' },
-    { key: 'paid_amount', title: '实付金额(TWD)' },
-    { key: 'other_fees', title: '其它费用(TWD)' },
-    { key: 'logistics_cost', title: '物流成本(TWD)' },
-    { key: 'order_income', title: '订单收入(TWD/CNY)', render: r => <span className="font-bold text-blue-600">{r.order_income}</span> },
+    { key: 'sales_amount', title: '销售金额(CNY)' },
+    { key: 'paid_amount', title: '实付金额(CNY)' },
+    { key: 'other_fees', title: '其它费用(CNY)' },
+    { key: 'logistics_cost', title: '物流成本(CNY)' },
+    { key: 'order_income', title: '订单收入(CNY)', render: r => <span className="font-bold text-blue-600">{r.order_income}</span> },
     { key: 'purchase_cost', title: '采购成本(CNY)' },
     { key: 'inventory_cost', title: '库存成本(CNY)' },
     { key: 'freight_cost', title: '货代成本(CNY)' },
@@ -98,18 +98,12 @@ export default function OrderProfitPage() {
               <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
             <div className="flex gap-2 lg:col-span-2">
-              <button onClick={refresh} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
+              <button onClick={refresh} className="flex items-center gap-1.5 h-9 px-4 bg-[#3c8dbc] text-white text-sm rounded hover:bg-[#367fa9] border border-[#367fa9] shadow-sm">
                 <Search className="w-4 h-4" /><span>查询</span>
               </button>
-              <button className="flex items-center gap-1.5 h-9 px-4 bg-[#00a65a] text-white text-sm rounded hover:bg-[#008d4c] border border-[#008d4c]">
+              <button className="flex items-center gap-1.5 h-9 px-4 bg-[#00a65a] text-white text-sm rounded hover:bg-[#008d4c] border border-[#008d4c] shadow-sm">
                 <Database className="w-4 h-4" /><span>更新缓存</span>
               </button>
-              <div className="flex border border-gray-300 rounded overflow-hidden ml-auto lg:ml-0">
-                <button onClick={refresh} className="p-2 bg-white hover:bg-gray-50 border-r border-gray-200"><RefreshCw className="w-4 h-4 text-gray-600" /></button>
-                <button className="p-2 bg-white hover:bg-gray-50 border-r border-gray-200"><Maximize className="w-4 h-4 text-gray-600" /></button>
-                <button className="p-2 bg-white hover:bg-gray-50 border-r border-gray-200"><LayoutGrid className="w-4 h-4 text-gray-600" /></button>
-                <button className="p-2 bg-white hover:bg-gray-50"><ExternalLink className="w-4 h-4 text-gray-600" /></button>
-              </div>
             </div>
           </div>
         </div>
