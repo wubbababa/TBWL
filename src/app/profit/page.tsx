@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Search, RefreshCw, Maximize, LayoutGrid, ExternalLink, ChevronDown, Calendar, Database } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useTableQuery } from '@/lib/useTableQuery';
+import { DataTable, Column } from '@/components/ui/DataTable';
 
 interface OrderProfit {
   id: string;
@@ -20,20 +21,18 @@ interface OrderProfit {
 }
 
 export default function OrderProfitPage() {
-  const [rows, setRows] = useState<OrderProfit[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchOrder, setSearchOrder] = useState('');
 
-  const fetchRows = async () => {
-    setLoading(true);
-    let query = supabase.from('order_profit').select('*');
-    if (searchOrder) query = query.ilike('order_number', `%${searchOrder}%`);
-    const { data } = await query.order('created_at', { ascending: false });
-    setRows(data || []);
-    setLoading(false);
-  };
+  const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
+    let q = query;
+    if (searchOrder) q = q.ilike('order_number', `%${searchOrder}%`);
+    return q;
+  }, [searchOrder]);
 
-  useEffect(() => { fetchRows(); }, []);
+  const { data: rows, loading, refresh } = useTableQuery<OrderProfit>({
+    table: 'order_profit',
+    filterFn,
+  });
 
   const sum = (key: keyof OrderProfit) =>
     rows.reduce((acc, r) => acc + Number(r[key] ?? 0), 0).toFixed(2);
@@ -47,16 +46,27 @@ export default function OrderProfitPage() {
     { label: '实际收入/CNY', value: sum('actual_income') },
   ];
 
+  const columns: Column<OrderProfit>[] = [
+    { key: 'order_number', title: '订单编号', render: r => <span className="text-blue-600 text-xs font-mono">{r.order_number}</span> },
+    { key: 'sales_amount', title: '销售金额(TWD)' },
+    { key: 'paid_amount', title: '实付金额(TWD)' },
+    { key: 'other_fees', title: '其它费用(TWD)' },
+    { key: 'logistics_cost', title: '物流成本(TWD)' },
+    { key: 'order_income', title: '订单收入(TWD/CNY)', render: r => <span className="font-bold text-blue-600">{r.order_income}</span> },
+    { key: 'purchase_cost', title: '采购成本(CNY)' },
+    { key: 'inventory_cost', title: '库存成本(CNY)' },
+    { key: 'freight_cost', title: '货代成本(CNY)' },
+    { key: 'actual_income', title: '实际收入(CNY)', render: r => <span className="font-bold text-green-600">{r.actual_income}</span> },
+    { key: 'action', title: '操作', className: 'text-center', render: () => <button className="text-blue-600 hover:underline text-xs font-bold">详情</button> },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <div className="bg-white rounded shadow-sm border border-gray-200">
         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold text-gray-800">订单利润</h1>
-            <RefreshCw
-              className={`w-4 h-4 text-[#3c8dbc] cursor-pointer hover:rotate-180 transition-transform duration-500 ${loading ? 'animate-spin' : ''}`}
-              onClick={fetchRows}
-            />
+            <RefreshCw className={`w-4 h-4 text-[#3c8dbc] cursor-pointer hover:rotate-180 transition-transform duration-500 ${loading ? 'animate-spin' : ''}`} onClick={refresh} />
             <span className="text-red-500 text-xs font-medium ml-2">默认只统计前三个月的订单数据</span>
           </div>
         </div>
@@ -88,14 +98,14 @@ export default function OrderProfitPage() {
               <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
             <div className="flex gap-2 lg:col-span-2">
-              <button onClick={fetchRows} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
+              <button onClick={refresh} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <Search className="w-4 h-4" /><span>查询</span>
               </button>
               <button className="flex items-center gap-1.5 h-9 px-4 bg-[#00a65a] text-white text-sm rounded hover:bg-[#008d4c] border border-[#008d4c]">
                 <Database className="w-4 h-4" /><span>更新缓存</span>
               </button>
               <div className="flex border border-gray-300 rounded overflow-hidden ml-auto lg:ml-0">
-                <button onClick={fetchRows} className="p-2 bg-white hover:bg-gray-50 border-r border-gray-200"><RefreshCw className="w-4 h-4 text-gray-600" /></button>
+                <button onClick={refresh} className="p-2 bg-white hover:bg-gray-50 border-r border-gray-200"><RefreshCw className="w-4 h-4 text-gray-600" /></button>
                 <button className="p-2 bg-white hover:bg-gray-50 border-r border-gray-200"><Maximize className="w-4 h-4 text-gray-600" /></button>
                 <button className="p-2 bg-white hover:bg-gray-50 border-r border-gray-200"><LayoutGrid className="w-4 h-4 text-gray-600" /></button>
                 <button className="p-2 bg-white hover:bg-gray-50"><ExternalLink className="w-4 h-4 text-gray-600" /></button>
@@ -104,49 +114,7 @@ export default function OrderProfitPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-white border-y border-gray-200 text-gray-700 font-bold">
-              <tr>
-                <th className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></th>
-                <th className="px-4 py-3 whitespace-nowrap">订单编号</th>
-                <th className="px-4 py-3 whitespace-nowrap">销售金额(TWD)</th>
-                <th className="px-4 py-3 whitespace-nowrap">实付金额(TWD)</th>
-                <th className="px-4 py-3 whitespace-nowrap">其它费用(TWD)</th>
-                <th className="px-4 py-3 whitespace-nowrap">物流成本(TWD)</th>
-                <th className="px-4 py-3 whitespace-nowrap">订单收入(TWD/CNY)</th>
-                <th className="px-4 py-3 whitespace-nowrap">采购成本(CNY)</th>
-                <th className="px-4 py-3 whitespace-nowrap">库存成本(CNY)</th>
-                <th className="px-4 py-3 whitespace-nowrap">货代成本(CNY)</th>
-                <th className="px-4 py-3 whitespace-nowrap">实际收入(CNY)</th>
-                <th className="px-4 py-3 whitespace-nowrap text-center">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={12} className="px-4 py-16 text-center"><RefreshCw className="w-6 h-6 animate-spin text-blue-500 mx-auto mb-2" /><div className="text-gray-400 text-sm">加载中...</div></td></tr>
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={12} className="px-4 py-8 text-center text-gray-500">没有找到匹配的记录</td></tr>
-              ) : rows.map(r => (
-                <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
-                  <td className="px-4 py-3 text-blue-600 text-xs font-mono">{r.order_number}</td>
-                  <td className="px-4 py-3">{r.sales_amount}</td>
-                  <td className="px-4 py-3">{r.paid_amount}</td>
-                  <td className="px-4 py-3">{r.other_fees}</td>
-                  <td className="px-4 py-3">{r.logistics_cost}</td>
-                  <td className="px-4 py-3 font-bold text-blue-600">{r.order_income}</td>
-                  <td className="px-4 py-3">{r.purchase_cost}</td>
-                  <td className="px-4 py-3">{r.inventory_cost}</td>
-                  <td className="px-4 py-3">{r.freight_cost}</td>
-                  <td className="px-4 py-3 font-bold text-green-600">{r.actual_income}</td>
-                  <td className="px-4 py-3 text-center"><button className="text-blue-600 hover:underline text-xs font-bold">详情</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="p-4 flex justify-end"><span className="text-gray-400 text-xs">共{rows.length}条记录</span></div>
-        </div>
+        <DataTable columns={columns} data={rows} loading={loading} emptyText="没有找到匹配的记录" />
       </div>
     </div>
   );

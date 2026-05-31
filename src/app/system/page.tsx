@@ -17,11 +17,11 @@ export default function SystemSettingsPage() {
 
   const sections = [
     { icon: Users, label: '账号管理', desc: '创建系统登录账号与权限分配', href: '/system/users' },
-    { icon: ShieldCheck, label: '安全设置', desc: '修改密码、两步验证与登录日志', href: null },
+    { icon: ShieldCheck, label: '安全设置', desc: '修改密码、两步验证与登录日志', href: '/system/password' },
     { icon: Bell, label: '通知中心', desc: '配置邮件、短信与站内信通知', href: null },
     { icon: Database, label: '数据备份', desc: '系统数据导出与备份计划', href: null },
     { icon: Globe, label: '通用设置', desc: '语言、时区与系统显示配置', href: null },
-    { icon: Monitor, label: '操作日志', desc: '查看所有管理员的操作记录', href: null },
+    { icon: Monitor, label: '操作日志', desc: '查看所有管理员的操作记录', href: '/system/logs' },
   ];
 
   return (

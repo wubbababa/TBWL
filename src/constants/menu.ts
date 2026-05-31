@@ -32,6 +32,8 @@ export const MENU_ITEMS: MenuItem[] = [
   { icon: Settings, label: '系统管理', path: '/system', hasSubmenu: true,
     submenu: [
       { label: '账号管理', path: '/system/users' },
+      { label: '修改密码', path: '/system/password' },
+      { label: '操作日志', path: '/system/logs' },
     ]
   },
   { icon: Package, label: '未关联包裹', path: '/unassociated' },

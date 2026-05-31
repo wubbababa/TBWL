@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Search, RefreshCw, CreditCard, FileSpreadsheet, ChevronDown } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useTableQuery } from '@/lib/useTableQuery';
+import { DataTable, Column } from '@/components/ui/DataTable';
 
 interface ExpenseRecord {
   id: string;
@@ -16,20 +17,33 @@ interface ExpenseRecord {
 }
 
 export default function ExpenseDetailsPage() {
-  const [records, setRecords] = useState<ExpenseRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
 
-  const fetchRecords = async () => {
-    setLoading(true);
-    let query = supabase.from('expense_records').select('*');
-    if (searchText) query = query.ilike('reference', `%${searchText}%`);
-    const { data } = await query.order('occurred_at', { ascending: false });
-    setRecords(data || []);
-    setLoading(false);
-  };
+  const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
+    let q = query;
+    if (searchText) q = q.ilike('reference', `%${searchText}%`);
+    return q;
+  }, [searchText]);
 
-  useEffect(() => { fetchRecords(); }, []);
+  const { data: records, loading, refresh } = useTableQuery<ExpenseRecord>({
+    table: 'expense_records',
+    orderBy: 'occurred_at',
+    filterFn,
+  });
+
+  const columns: Column<ExpenseRecord>[] = [
+    { key: 'serial_number', title: '流水號', className: 'text-center', render: r => <span className="font-mono text-xs text-gray-600">{r.serial_number}</span> },
+    { key: 'expense_type', title: '消費類型', className: 'text-center', render: r => (
+      <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-[11px] font-bold">{r.expense_type}</span>
+    )},
+    { key: 'reference', title: '訂單編號/快遞單號/店鋪名', className: 'text-center', render: r => <span className="text-gray-600 text-xs">{r.reference || '-'}</span> },
+    { key: 'description', title: '描述', className: 'text-center', render: r => <span className="text-gray-500 text-xs">{r.description || '-'}</span> },
+    { key: 'points', title: '積分', className: 'text-center', render: r => <span className="font-bold text-red-600">{r.points}</span> },
+    { key: 'status', title: '狀態', className: 'text-center', render: r => (
+      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${r.status === '成功' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>{r.status}</span>
+    )},
+    { key: 'occurred_at', title: '發生時間', className: 'text-center', render: r => <span className="text-gray-500 text-xs">{new Date(r.occurred_at).toLocaleString('zh-CN')}</span> },
+  ];
 
   return (
     <div className="flex flex-col gap-4">
@@ -37,10 +51,7 @@ export default function ExpenseDetailsPage() {
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <CreditCard className="w-5 h-5 text-gray-700" />
           <h1 className="text-lg font-bold text-gray-800 uppercase">消費記錄</h1>
-          <RefreshCw
-            className={`w-4 h-4 text-[#3c8dbc] cursor-pointer hover:rotate-180 transition-transform duration-500 ${loading ? 'animate-spin' : ''}`}
-            onClick={fetchRecords}
-          />
+          <RefreshCw className={`w-4 h-4 text-[#3c8dbc] cursor-pointer hover:rotate-180 transition-transform duration-500 ${loading ? 'animate-spin' : ''}`} onClick={refresh} />
         </div>
         <div className="p-4">
           <div className="flex flex-wrap gap-3 items-center">
@@ -54,7 +65,7 @@ export default function ExpenseDetailsPage() {
             </div>
             <input type="text" placeholder="時間" className="w-full sm:w-64 h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
             <div className="flex gap-2">
-              <button onClick={fetchRecords} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
+              <button onClick={refresh} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <Search className="w-4 h-4" /><span>查询</span>
               </button>
               <button className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
@@ -66,45 +77,7 @@ export default function ExpenseDetailsPage() {
       </div>
 
       <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-center">
-            <thead className="bg-white border-y border-gray-200 text-gray-700 font-bold">
-              <tr>
-                <th className="px-4 py-3 text-left"><input type="checkbox" className="rounded border-gray-300" /></th>
-                <th className="px-4 py-3 whitespace-nowrap">流水號</th>
-                <th className="px-4 py-3 whitespace-nowrap">消費類型</th>
-                <th className="px-4 py-3 whitespace-nowrap">訂單編號/快遞單號/店鋪名</th>
-                <th className="px-4 py-3 whitespace-nowrap">描述</th>
-                <th className="px-4 py-3 whitespace-nowrap">積分</th>
-                <th className="px-4 py-3 whitespace-nowrap">狀態</th>
-                <th className="px-4 py-3 whitespace-nowrap">發生時間</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={8} className="px-4 py-16 text-center"><RefreshCw className="w-6 h-6 animate-spin text-blue-500 mx-auto mb-2" /><div className="text-gray-400 text-sm">加载中...</div></td></tr>
-              ) : records.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-16 text-center text-gray-400">暂无消费记录</td></tr>
-              ) : records.map(r => (
-                <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50 text-left">
-                  <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-600">{r.serial_number}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-[11px] font-bold">{r.expense_type}</span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 text-xs">{r.reference || '-'}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{r.description || '-'}</td>
-                  <td className="px-4 py-3 text-center font-bold text-red-600">{r.points}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${r.status === '成功' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>{r.status}</span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{new Date(r.occurred_at).toLocaleString('zh-CN')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="p-4 flex justify-end"><span className="text-gray-400 text-xs italic">共{records.length}條記錄</span></div>
-        </div>
+        <DataTable columns={columns} data={records} loading={loading} emptyText="暂无消费记录" />
       </div>
     </div>
   );

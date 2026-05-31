@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Search, RefreshCw, ShoppingCart, RotateCcw, AlertCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useTableQuery } from '@/lib/useTableQuery';
+import { DataTable, Column } from '@/components/ui/DataTable';
 
 interface AbnormalParcel {
   id: string;
@@ -16,22 +17,37 @@ interface AbnormalParcel {
 }
 
 export default function AbnormalParcelsPage() {
-  const [parcels, setParcels] = useState<AbnormalParcel[]>([]);
-  const [loading, setLoading] = useState(true);
   const [trackingFilter, setTrackingFilter] = useState('');
   const [orderFilter, setOrderFilter] = useState('');
 
-  const fetchParcels = async () => {
-    setLoading(true);
-    let query = supabase.from('abnormal_parcels').select('*');
-    if (trackingFilter) query = query.ilike('tracking_number', `%${trackingFilter}%`);
-    if (orderFilter) query = query.ilike('order_number', `%${orderFilter}%`);
-    const { data } = await query.order('created_at', { ascending: false });
-    setParcels(data || []);
-    setLoading(false);
-  };
+  const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
+    let q = query;
+    if (trackingFilter) q = q.ilike('tracking_number', `%${trackingFilter}%`);
+    if (orderFilter) q = q.ilike('order_number', `%${orderFilter}%`);
+    return q;
+  }, [trackingFilter, orderFilter]);
 
-  useEffect(() => { fetchParcels(); }, []);
+  const { data: parcels, loading, refresh } = useTableQuery<AbnormalParcel>({
+    table: 'abnormal_parcels',
+    filterFn,
+  });
+
+  const columns: Column<AbnormalParcel>[] = [
+    { key: 'tracking_number', title: <div className="flex flex-col"><span>快递包裹</span><span>订单编号</span></div>, render: p => (
+      <div className="flex flex-col items-center gap-0.5">
+        <span className="font-mono text-xs text-gray-600">{p.tracking_number || '-'}</span>
+        <span className="text-xs text-blue-600">{p.order_number}</span>
+      </div>
+    )},
+    { key: 'abnormal_type', title: '异常类型', className: 'text-center', render: p => (
+      <span className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-100 rounded-full text-[11px] font-bold">{p.abnormal_type}</span>
+    )},
+    { key: 'process_action', title: '处理', className: 'text-center', render: p => <span className="text-gray-600 text-xs">{p.process_action || '-'}</span> },
+    { key: 'created_at', title: '创建时间', className: 'text-center', render: p => <span className="text-gray-500 text-xs">{new Date(p.created_at).toLocaleDateString('zh-CN')}</span> },
+    { key: 'idle_days', title: '包裹闲置时长', className: 'text-center', render: p => <span className="text-red-500 font-medium">{p.idle_days}天</span> },
+    { key: 'processed_at', title: '处理时间', className: 'text-center', render: p => <span className="text-gray-500 text-xs">{p.processed_at ? new Date(p.processed_at).toLocaleDateString('zh-CN') : '-'}</span> },
+    { key: 'action', title: '操作', className: 'text-center', render: () => <button className="text-blue-600 hover:underline text-xs font-bold">处理</button> },
+  ];
 
   return (
     <div className="flex flex-col gap-4">
@@ -45,10 +61,7 @@ export default function AbnormalParcelsPage() {
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <ShoppingCart className="w-5 h-5 text-gray-700" />
           <h1 className="text-lg font-bold text-gray-800">异常包裹处理中心</h1>
-          <RefreshCw
-            className={`w-4 h-4 text-[#3c8dbc] cursor-pointer hover:rotate-180 transition-transform duration-500 ${loading ? 'animate-spin' : ''}`}
-            onClick={fetchParcels}
-          />
+          <RefreshCw className={`w-4 h-4 text-[#3c8dbc] cursor-pointer hover:rotate-180 transition-transform duration-500 ${loading ? 'animate-spin' : ''}`} onClick={refresh} />
         </div>
 
         <div className="p-4">
@@ -59,7 +72,7 @@ export default function AbnormalParcelsPage() {
               className="w-full sm:w-64 h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
             <input type="text" placeholder="时间" className="w-full sm:w-64 h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
             <div className="flex gap-2">
-              <button onClick={fetchParcels} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
+              <button onClick={refresh} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <Search className="w-4 h-4" /><span>查询</span>
               </button>
               <button onClick={() => { setTrackingFilter(''); setOrderFilter(''); }} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
@@ -73,47 +86,8 @@ export default function AbnormalParcelsPage() {
           </div>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm text-center">
-            <thead className="bg-white border-y border-gray-200 text-gray-700 font-bold">
-              <tr>
-                <th className="px-4 py-3 text-left"><input type="checkbox" className="rounded border-gray-300" /></th>
-                <th className="px-4 py-3"><div className="flex flex-col"><span>快递包裹</span><span>订单编号</span></div></th>
-                <th className="px-4 py-3 whitespace-nowrap">异常类型</th>
-                <th className="px-4 py-3 whitespace-nowrap">处理</th>
-                <th className="px-4 py-3 whitespace-nowrap">创建时间</th>
-                <th className="px-4 py-3 whitespace-nowrap">包裹闲置时长</th>
-                <th className="px-4 py-3 whitespace-nowrap">处理时间</th>
-                <th className="px-4 py-3 whitespace-nowrap">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={8} className="px-4 py-16 text-center"><RefreshCw className="w-6 h-6 animate-spin text-blue-500 mx-auto mb-2" /><div className="text-gray-400 text-sm">加载中...</div></td></tr>
-              ) : parcels.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">暂无异常包裹记录</td></tr>
-              ) : parcels.map(p => (
-                <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3 text-left"><input type="checkbox" className="rounded border-gray-300" /></td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="font-mono text-xs text-gray-600">{p.tracking_number || '-'}</span>
-                      <span className="text-xs text-blue-600">{p.order_number}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-100 rounded-full text-[11px] font-bold">{p.abnormal_type}</span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 text-xs">{p.process_action || '-'}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{new Date(p.created_at).toLocaleDateString('zh-CN')}</td>
-                  <td className="px-4 py-3 text-red-500 font-medium">{p.idle_days}天</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{p.processed_at ? new Date(p.processed_at).toLocaleDateString('zh-CN') : '-'}</td>
-                  <td className="px-4 py-3"><button className="text-blue-600 hover:underline text-xs font-bold">处理</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="p-4 flex justify-end"><span className="text-gray-400 text-xs italic">共{parcels.length}条记录</span></div>
+        <div className="mt-4">
+          <DataTable columns={columns} data={parcels} loading={loading} emptyText="暂无异常包裹记录" />
         </div>
       </div>
     </div>
