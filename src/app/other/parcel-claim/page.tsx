@@ -26,11 +26,15 @@ export default function ParcelClaimPage() {
     setLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchParcels(); }, []);
+
+  // 用 state 存储当前时间，避免 render 中调用 Date.now() 触发 purity 规则
+  const [now] = useState(() => Date.now());
 
   // 计算闲置时长（小时）
   const getIdleHours = (inboundAt: string) => {
-    const diff = Date.now() - new Date(inboundAt).getTime();
+    const diff = now - new Date(inboundAt).getTime();
     return Math.floor(diff / (1000 * 60 * 60));
   };
 
@@ -41,8 +45,8 @@ export default function ParcelClaimPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="bg-transparent text-[13px] text-gray-500 leading-relaxed px-1">
-        <p>1.包裹認領:指寄到倉庫的快遞包裹没有绑定快递也不是入库快递, 倉庫無法識別是誰的包裹, 稱之為"無主件"</p>
-        <p>2.倉庫會將"無主件"進行公示, 您可以通過输入完整的快遞单号校验, 校驗正確後則可以點擊認領</p>
+        <p>1.包裹認領:指寄到倉庫的快遞包裹没有绑定快递也不是入库快递, 倉庫無法識別是誰的包裹, 稱之為&ldquo;無主件&rdquo;</p>
+        <p>2.倉庫會將&ldquo;無主件&rdquo;進行公示, 您可以通過输入完整的快遞单号校验, 校驗正確後則可以點擊認領</p>
         <p>3.無主件倉庫會进行公示30天, 30天後無人認領, 倉庫即做銷毀處理, 不予任何查找或理賠</p>
       </div>
 

@@ -17,9 +17,9 @@ import { downloadWaybillsBatch, type OrderWaybillFields } from '@/lib/waybill';
 let CloudSync: React.ComponentType<{ className?: string }>;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  CloudSync = require('lucide-react').CloudSync ?? (() => null);
+  CloudSync = require('lucide-react').CloudSync ?? RefreshCw;
 } catch {
-  CloudSync = () => null;
+  CloudSync = RefreshCw;
 }
 
 interface Props {

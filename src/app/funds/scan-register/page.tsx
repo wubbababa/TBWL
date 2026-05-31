@@ -24,7 +24,7 @@ export default function ScanRegisterPage() {
     return q;
   }, [methodFilter]);
 
-  const { data: records, loading, refresh } = useTableQuery<ScanRecord>({
+  const { data: records, loading, error, total, page, totalPages, setPage, refresh } = useTableQuery<ScanRecord>({
     table: 'scan_register',
     filterFn,
   });
@@ -72,7 +72,8 @@ export default function ScanRegisterPage() {
       </div>
 
       <div className="bg-white border border-gray-200 rounded shadow-sm overflow-hidden">
-        <DataTable columns={columns} data={records} loading={loading} emptyText="共0條記錄" />
+        <DataTable columns={columns} data={records} loading={loading} error={error} emptyText="共0條記錄"
+          pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
     </div>
   );

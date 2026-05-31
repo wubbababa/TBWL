@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { 
   Plus, 
   Trash2, 
@@ -64,17 +65,19 @@ export default function InventoryProductsPage() {
 
       if (fetchError) throw fetchError;
       setProducts(data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Fetch inventory error:', err);
-      setError(err.message || '获取库存数据失败');
+      setError(err instanceof Error ? err.message : '获取库存数据失败');
     } finally {
       setLoading(false);
     }
   };
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchProducts();
   }, []);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -259,7 +262,7 @@ export default function InventoryProductsPage() {
                     <td className="px-4 py-3">{p.name}</td>
                     <td className="px-4 py-3">
                       {p.thumbnail ? (
-                        <img src={p.thumbnail} alt={p.name} className="w-10 h-10 object-cover rounded border border-gray-200" />
+                        <Image src={p.thumbnail} alt={p.name} width={40} height={40} className="w-10 h-10 object-cover rounded border border-gray-200" />
                       ) : (
                         <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-[10px] text-gray-400">无图</div>
                       )}

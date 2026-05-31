@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import ProfitTrendChart from '@/components/home/ProfitTrendChart';
 
-const StatCard = ({ count, label, Icon, color, loading, href }: { count: string | number, label: string, Icon: any, color: string, loading?: boolean, href?: string }) => (
+const StatCard = ({ count, label, Icon, color, loading, href }: { count: string | number, label: string, Icon: React.ComponentType<{ className?: string }>, color: string, loading?: boolean, href?: string }) => (
   <Link href={href || '#'} className={`${color} rounded-sm shadow-sm text-white flex flex-col relative overflow-hidden group h-[110px] cursor-pointer`}>
     <div className="p-4 z-10">
       <h3 className="text-3xl font-bold">{loading ? '...' : count}</h3>

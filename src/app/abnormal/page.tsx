@@ -27,7 +27,7 @@ export default function AbnormalParcelsPage() {
     return q;
   }, [trackingFilter, orderFilter]);
 
-  const { data: parcels, loading, refresh } = useTableQuery<AbnormalParcel>({
+  const { data: parcels, loading, error, total, page, totalPages, setPage, refresh } = useTableQuery<AbnormalParcel>({
     table: 'abnormal_parcels',
     filterFn,
   });
@@ -87,7 +87,8 @@ export default function AbnormalParcelsPage() {
         </div>
 
         <div className="mt-4">
-          <DataTable columns={columns} data={parcels} loading={loading} emptyText="暂无异常包裹记录" />
+          <DataTable columns={columns} data={parcels} loading={loading} error={error} emptyText="暂无异常包裹记录"
+            pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
         </div>
       </div>
     </div>

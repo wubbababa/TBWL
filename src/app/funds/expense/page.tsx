@@ -25,7 +25,7 @@ export default function ExpenseDetailsPage() {
     return q;
   }, [searchText]);
 
-  const { data: records, loading, refresh } = useTableQuery<ExpenseRecord>({
+  const { data: records, loading, error, total, page, totalPages, setPage, refresh } = useTableQuery<ExpenseRecord>({
     table: 'expense_records',
     orderBy: 'occurred_at',
     filterFn,
@@ -77,7 +77,8 @@ export default function ExpenseDetailsPage() {
       </div>
 
       <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col">
-        <DataTable columns={columns} data={records} loading={loading} emptyText="暂无消费记录" />
+        <DataTable columns={columns} data={records} loading={loading} error={error} emptyText="暂无消费记录"
+          pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
     </div>
   );

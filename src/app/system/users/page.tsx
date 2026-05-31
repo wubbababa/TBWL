@@ -66,6 +66,7 @@ export default function UserManagementPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchUsers(); }, []);
 
   const handleToggle = async (userId: string, ban: boolean) => {

@@ -113,7 +113,7 @@ export const Sidebar = () => {
         ) : (
           filteredItems.map((item) => {
             const hasSubmenu = !!(item.hasSubmenu || item.submenu);
-            const forceOpen = (item as any)._forceOpen;
+            const forceOpen = (item as Record<string, unknown>)._forceOpen as boolean | undefined;
             const isOpen = isMenuOpen(item.label, forceOpen);
 
             const isItemActive =

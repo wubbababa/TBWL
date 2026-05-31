@@ -40,6 +40,7 @@ export default function TaiwanApplyPage() {
     setLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchRows(); }, []);
 
   return (

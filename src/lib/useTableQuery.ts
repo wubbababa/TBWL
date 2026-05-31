@@ -1,31 +1,91 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 
-type FilterFn = (query: ReturnType<ReturnType<typeof supabase.from>['select']>) => ReturnType<ReturnType<typeof supabase.from>['select']>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type QueryBuilder = any;
+type FilterFn = (query: QueryBuilder) => QueryBuilder;
 
 interface UseTableQueryOptions {
   table: string;
+  pageSize?: number;
   orderBy?: string;
   ascending?: boolean;
   filterFn?: FilterFn;
 }
 
-export function useTableQuery<T>({ table, orderBy = 'created_at', ascending = false, filterFn }: UseTableQueryOptions) {
+interface UseTableQueryResult<T> {
+  data: T[];
+  loading: boolean;
+  error: string | null;
+  total: number;
+  page: number;
+  totalPages: number;
+  setPage: (p: number) => void;
+  refresh: () => void;
+}
+
+export function useTableQuery<T>({
+  table,
+  pageSize = 20,
+  orderBy = 'created_at',
+  ascending = false,
+  filterFn,
+}: UseTableQueryOptions): UseTableQueryResult<T> {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const mountedRef = useRef(true);
+  const prevFilterRef = useRef(filterFn);
 
-  const fetch = useCallback(async () => {
+  // 当 filterFn 引用变化时（筛选条件改变），自动重置到第 1 页
+  if (prevFilterRef.current !== filterFn) {
+    prevFilterRef.current = filterFn;
+    if (page !== 1) setPage(1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from(table).select('*');
-    if (filterFn) query = filterFn(query);
-    const { data: result } = await query.order(orderBy, { ascending });
-    setData((result as T[]) || []);
-    setLoading(false);
-  }, [table, orderBy, ascending, filterFn]);
+    setError(null);
+    try {
+      let query = supabase.from(table).select('*', { count: 'exact' });
+      if (filterFn) query = filterFn(query);
 
-  useEffect(() => { fetch(); }, [fetch]);
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
 
-  return { data, loading, refresh: fetch };
+      const { data: result, count, error: fetchError } = await query
+        .order(orderBy, { ascending })
+        .range(from, to);
+
+      if (fetchError) throw fetchError;
+      if (mountedRef.current) {
+        setData((result as T[]) || []);
+        setTotal(count ?? 0);
+      }
+    } catch (err: unknown) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : '数据加载失败');
+      }
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, [table, pageSize, orderBy, ascending, filterFn, page]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    fetchData();
+    return () => { mountedRef.current = false; };
+  }, [fetchData]);
+
+  const refresh = useCallback(() => {
+    setPage(1);
+  }, []);
+
+  return { data, loading, error, total, page, totalPages, setPage, refresh };
 }

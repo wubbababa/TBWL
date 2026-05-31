@@ -24,7 +24,7 @@ CREATE POLICY "Authenticated users can read logs"
 CREATE POLICY "Service role can insert logs"
   ON operation_logs FOR INSERT
   TO service_role
-  USING (true);
+  WITH CHECK (true);
 
 -- 示例数据
 INSERT INTO operation_logs (user_email, action, module, detail) VALUES

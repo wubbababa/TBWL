@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { Search, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -27,6 +28,7 @@ export default function ProductDatabasePage() {
     setLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchProducts(); }, []);
 
   return (
@@ -78,7 +80,7 @@ export default function ProductDatabasePage() {
                   <td className="px-4 py-3 text-center text-gray-600">{p.store_name}</td>
                   <td className="px-4 py-3 text-center">
                     {p.thumbnail
-                      ? <img src={p.thumbnail} alt={p.name} className="w-10 h-10 object-cover rounded border border-gray-200 mx-auto" />
+                      ? <Image src={p.thumbnail} alt={p.name} width={40} height={40} className="w-10 h-10 object-cover rounded border border-gray-200 mx-auto" />
                       : <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-[10px] text-gray-400 mx-auto">无图</div>}
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-700">{p.sku}</td>

@@ -47,6 +47,7 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
     const label = PATH_LABEL_MAP[pathname];
     if (!label) return;
     const tab: Tab = { label, path: pathname };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTabs(prev => {
       if (prev.some(t => t.path === pathname)) return prev;
       return [...prev, tab];

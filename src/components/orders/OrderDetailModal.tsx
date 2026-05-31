@@ -585,12 +585,3 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
     </div>
   );
 };
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2">
-      <span className="text-gray-400 text-sm shrink-0 w-20">{label}</span>
-      <span className="text-gray-800 text-sm break-all">{value}</span>
-    </div>
-  );
-}

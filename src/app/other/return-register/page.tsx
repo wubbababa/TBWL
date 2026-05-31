@@ -3,7 +3,6 @@
 import React from 'react';
 import { 
   FileEdit, 
-  Package, 
   Send, 
   Info,
   AlertTriangle,

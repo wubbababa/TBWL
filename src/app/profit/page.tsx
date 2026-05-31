@@ -29,7 +29,7 @@ export default function OrderProfitPage() {
     return q;
   }, [searchOrder]);
 
-  const { data: rows, loading, refresh } = useTableQuery<OrderProfit>({
+  const { data: rows, loading, error, total, page, totalPages, setPage, refresh } = useTableQuery<OrderProfit>({
     table: 'order_profit',
     filterFn,
   });
@@ -114,7 +114,8 @@ export default function OrderProfitPage() {
           </div>
         </div>
 
-        <DataTable columns={columns} data={rows} loading={loading} emptyText="没有找到匹配的记录" />
+        <DataTable columns={columns} data={rows} loading={loading} error={error} emptyText="没有找到匹配的记录"
+          pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
     </div>
   );

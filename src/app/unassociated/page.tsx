@@ -25,7 +25,7 @@ export default function UnassociatedParcelsPage() {
     return q;
   }, [trackingFilter, statusFilter]);
 
-  const { data: parcels, loading, refresh } = useTableQuery<UnassociatedParcel>({
+  const { data: parcels, loading, error, total, page, totalPages, setPage, refresh } = useTableQuery<UnassociatedParcel>({
     table: 'unassociated_parcels',
     orderBy: 'inbound_at',
     filterFn,
@@ -86,7 +86,8 @@ export default function UnassociatedParcelsPage() {
           </div>
         </div>
 
-        <DataTable columns={columns} data={parcels} loading={loading} emptyText="没有找到未关联的包裹记录" />
+        <DataTable columns={columns} data={parcels} loading={loading} error={error} emptyText="没有找到未关联的包裹记录"
+          pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
     </div>
   );

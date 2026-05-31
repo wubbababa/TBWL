@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ShieldAlert, Search, Plus, Filter, CheckCircle2, Clock, XCircle, MoreVertical, RefreshCw } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useTableQuery } from '@/lib/useTableQuery';
 
 interface Claim {
   id: string;
@@ -29,22 +29,20 @@ const StatusIcon = ({ s }: { s: string }) => {
 };
 
 export default function ClaimsPage() {
-  const [claims, setClaims] = useState<Claim[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
 
-  const fetchClaims = async () => {
-    setLoading(true);
-    let query = supabase.from('claims').select('*');
+  const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
+    let q = query;
     if (searchText) {
-      query = query.or(`order_number.ilike.%${searchText}%,tracking_number.ilike.%${searchText}%`);
+      q = q.or(`order_number.ilike.%${searchText}%,tracking_number.ilike.%${searchText}%`);
     }
-    const { data } = await query.order('created_at', { ascending: false });
-    setClaims(data || []);
-    setLoading(false);
-  };
+    return q;
+  }, [searchText]);
 
-  useEffect(() => { fetchClaims(); }, []);
+  const { data: claims, loading, total, refresh } = useTableQuery<Claim>({
+    table: 'claims',
+    filterFn,
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,16 +70,16 @@ export default function ClaimsPage() {
               placeholder="搜索索赔单号、订单号或物流单号..."
               value={searchText}
               onChange={e => setSearchText(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && fetchClaims()}
+              onKeyDown={e => e.key === 'Enter' && refresh()}
               className="w-full h-10 pl-10 pr-4 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-red-500 outline-none transition-all text-sm"
             />
           </div>
-          <button onClick={fetchClaims} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50">
+          <button onClick={refresh} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50">
             <Filter className="w-4 h-4" />筛选条件
           </button>
           <RefreshCw
             className={`w-4 h-4 text-[#3c8dbc] cursor-pointer hover:rotate-180 transition-transform duration-500 ${loading ? 'animate-spin' : ''}`}
-            onClick={fetchClaims}
+            onClick={refresh}
           />
         </div>
 
@@ -144,7 +142,7 @@ export default function ClaimsPage() {
           </table>
         </div>
         <div className="p-6 bg-gray-50 border-t border-gray-100 text-center">
-          <p className="text-xs text-gray-400">共 {claims.length} 条索赔记录</p>
+          <p className="text-xs text-gray-400">共 {total} 条索赔记录</p>
         </div>
       </div>
     </div>

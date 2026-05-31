@@ -28,7 +28,7 @@ export default function ShippingDetailsPage() {
     return q;
   }, [searchText, methodFilter]);
 
-  const { data: records, loading, refresh } = useTableQuery<ShippingRecord>({
+  const { data: records, loading, error, total, page, totalPages, setPage, refresh } = useTableQuery<ShippingRecord>({
     table: 'shipping_records',
     orderBy: 'occurred_at',
     filterFn,
@@ -85,7 +85,8 @@ export default function ShippingDetailsPage() {
       </div>
 
       <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col">
-        <DataTable columns={columns} data={records} loading={loading} emptyText="暂无运输费记录" />
+        <DataTable columns={columns} data={records} loading={loading} error={error} emptyText="暂无运输费记录"
+          pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
     </div>
   );

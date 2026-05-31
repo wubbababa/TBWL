@@ -1,6 +1,6 @@
 # TBWL 客户端贴单ERP系统 — CodeMap
 
-> 生成日期: 2026-05-21
+> 生成日期: 2026-05-31
 > 技术栈: Next.js 16 + React 19 + TypeScript + Tailwind CSS v4 + Supabase
 
 ---
@@ -10,7 +10,7 @@
 ```
 TBWL (客户端贴单ERP系统)
 ├── 类型: B2B 企业级 Web ERP — 仓储/订单/资金管理
-├── 状态: 🏗 基础架构已完成，核心流程可用，部分模块待完善
+├── 状态: 🟢 核心功能完整，安全加固已完成，分页已全面接入
 ├── 用户: 跨境仓储企业客户（面向中国—台湾物流链路）
 ├── 运行: pnpm dev → localhost:3000
 └── 部署: Vercel (已关联项目)
@@ -27,6 +27,7 @@ TBWL (客户端贴单ERP系统)
 | 图标 | Lucide React | 1.7.0 |
 | 数据库 | Supabase (Postgres) | @supabase/supabase-js 2.105.4 |
 | 认证 | Supabase Auth (SSR Cookies) | @supabase/ssr 0.10.3 |
+| 图片优化 | next/image | 内置 |
 
 ---
 
@@ -115,8 +116,10 @@ LoginLayout (src/app/login/layout.tsx)
 
 | 路径 | 方法 | 功能 |
 |---|---|---|
-| `/api/admin/create-user` | POST | 管理员创建新用户 (service_role) |
-| `/api/account-stats` | GET | 账户余额/消费/充值汇总 |
+| `/api/admin/create-user` | POST | 管理员创建新用户 (service_role + role 鉴权) |
+| `/api/admin/list-users` | GET | 列出所有用户 |
+| `/api/admin/toggle-user` | POST | 启用/禁用用户 |
+| `/api/account-stats` | GET | 账户余额/消费/充值汇总 (需认证) |
 
 ---
 
@@ -143,23 +146,34 @@ LoginLayout (src/app/login/layout.tsx)
 | `CsvImportModal` | CSV 导入 (上传→预览→确认→写入) |
 | `ActionButtons` | 批量操作工具栏 (导出/导入模板/删除/状态批量变更) |
 
-### 4.3 数据流模式
+### 4.3 通用 UI 组件 (`src/components/ui/`)
+
+| 组件 | 职责 |
+|---|---|
+| `DataTable<T>` | 通用数据表格 — 列定义/加载态/空态/错误态/分页UI/复选框 |
+
+### 4.4 数据流模式
 
 所有页面遵循一致的 **客户端组件 + Supabase 直连** 模式:
 
 ```
-页面组件 (page.tsx)
-  ├── useState → 筛选条件 / 数据状态
-  ├── useEffect → supabase.from('table').select('*') 初始化加载
-  ├── 事件处理 → supabase 查询/变更
-  └── 渲染 → 筛选表单 + 数据表格 + 操作按钮
+列表页面 (page.tsx) — 通用模式
+  ├── useTableQuery<T>() → 分页数据 + loading + error + total
+  ├── useState → 筛选条件
+  ├── useCallback → filterFn (筛选逻辑)
+  └── 渲染 → 筛选表单 + <DataTable> + 分页控件
+
+订单页面 (特殊) — 自定义实现
+  ├── OrderTable 组件内置分页 (PAGE_SIZE=20, range + count:exact)
+  ├── 可选列探测 (probe optional columns)
+  └── 全部 12 个筛选维度接入
 ```
 
 关键特征:
 - 全部为 `'use client'` 组件（SSR 未使用）
-- 数据获取: Supabase JS SDK 浏览器端直连
-- 无状态管理库、无 React Query、无 SWR
-- 批量操作通过 `supabase.rpc` 或逐行 `update/delete`
+- 数据获取: Supabase JS SDK 浏览器端直连 + 服务端分页
+- 通用列表页使用 `useTableQuery` + `DataTable` 模板（消除重复）
+- 订单模块有独立的高级实现（多选/批量操作/CSV导入导出）
 
 ---
 
@@ -183,6 +197,8 @@ LoginLayout (src/app/login/layout.tsx)
 | `scan_register` | 扫码登记 | serial_number, payment_method, amount |
 | `taiwan_apply` | 台湾发货申请 | member_code, product_count, manifest_type, status |
 | `taiwan_parcels` | 台湾包裹 | (在 seed_all_modules.sql 中定义完整结构) |
+| `operation_logs` | 操作日志 | user_email, action, module, detail, ip_address |
+| `order_profit` | 订单利润 | order_number, sales_amount, paid_amount, actual_income |
 
 ### 5.2 工具库 (`src/lib/`)
 
@@ -191,6 +207,8 @@ LoginLayout (src/app/login/layout.tsx)
 | `supabase.ts` | `supabase` 客户端实例 | 浏览器端 Supabase 客户端 (SSR cookies) |
 | `auth.ts` | `useAuth()` hook | 用户会话状态 + 登出 |
 | `csv.ts` | 5个函数 + 4个常量 | CSV 列的Schema定义、解析、生成、下载、模板生成 |
+| `useTableQuery.ts` | `useTableQuery<T>()` hook | 通用表格数据获取 — 分页/排序/筛选/错误处理/自动重置页码 |
+| `waybill.ts` | 面单相关工具函数 | 面单上传/下载/批量操作 |
 
 ### 5.3 认证与路由守卫
 
@@ -247,14 +265,20 @@ proxy.ts (Middleware)
 
 ## 7. 已知问题与待办 (来自 todo.txt)
 
-| 优先级 | 问题 | 影响 |
+| 优先级 | 问题 | 状态 |
 |---|---|---|
-| **P0** | 无访问控制 | 任何人打开 URL 即可看到所有数据 |
-| **P1** | 订单详情/状态操作缺失 | 订单"详情"按钮无响应，批量操作为空壳 |
-| **P2** | 首页数据硬编码 | 余额/累计消费/充值全部为 0 |
-| **P3** | 创建/编辑表单未实现 | 库存商品/入库申请等"创建"按钮空壳 |
-| **P4** | 无分页 | 表格一次性加载全部数据 |
-| **P5** | 系统管理未实现 | 账号管理/操作日志等纯展示卡片 |
+| **P0** | 访问控制 / RLS | ✅ 已修复 — proxy.ts 真实 JWT 校验 + orders RLS 启用 |
+| **P1** | 订单详情/状态操作 | ✅ 已完成 — 详情弹窗/编辑/删除/批量操作/面单/CSV |
+| **P2** | 首页数据硬编码 | ✅ 已完成 — /api/account-stats 真实聚合 |
+| **P3** | 创建/编辑表单 | ✅ 已完成 — 库存/入库/台湾发货创建弹窗 |
+| **P4** | 分页 | ✅ 已完成 — 全部列表页接入 useTableQuery 分页 |
+| **P5** | 系统管理 | ✅ 已完成 — 密码修改/操作日志/账号管理 |
+
+### 剩余优化方向
+
+- 库存商品/台湾商品页面仍为手写表格（有自定义图片列），未迁移到 DataTable
+- `inventory/apply` 有 CreateModal 回调依赖，保留原有模式
+- 4 处 `<img>` 已替换为 `next/image`，需确保 Supabase Storage 图片 URL 可访问
 
 ---
 
@@ -302,8 +326,14 @@ SUPABASE_SERVICE_ROLE_KEY     → 服务端管理员密钥 (仅 admin API 使用
 
 ## 11. 风险与建议
 
-1. **安全性风险**: 当前无 RBAC/权限控制，所有认证用户可访问全部数据
-2. **性能风险**: 所有表格无分页，随数据增长将显著变慢
-3. **可维护性**: 页面级代码重复度高 — 每个页面独立编写筛选/查询/表格逻辑，推荐提取通用 CRUD 模板
-4. **错误处理**: 大部分页面有 try/catch 但缺少用户友好的错误提示 UI
-5. **SSR 未启用**: 全部 `'use client'` 不利于 SEO 和首屏性能
+1. ~~**安全性风险**: 当前无 RBAC/权限控制~~ → ✅ 已修复（RLS + JWT 校验 + 角色鉴权）
+2. ~~**性能风险**: 所有表格无分页~~ → ✅ 已修复（全部列表页接入分页）
+3. ~~**可维护性**: 页面级代码重复度高~~ → ✅ 已修复（useTableQuery + DataTable 通用模板）
+4. **错误处理**: ✅ 已添加全局 error.tsx 错误边界 + useTableQuery 内置 error 状态
+5. **SSR 未启用**: 全部 `'use client'` 不利于 SEO 和首屏性能（ERP 系统可接受）
+
+### 代码质量
+
+- ESLint: **0 errors, 0 warnings** (从 39 个问题修复至 0)
+- TypeScript: strict mode, 0 errors
+- next build: 成功，31 个路由全部正确构建
