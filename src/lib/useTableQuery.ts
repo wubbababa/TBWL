@@ -13,6 +13,8 @@ interface UseTableQueryOptions {
   orderBy?: string;
   ascending?: boolean;
   filterFn?: FilterFn;
+  /** Debounce delay in ms when filterFn changes (default: 300) */
+  debounce?: number;
 }
 
 interface UseTableQueryResult<T> {
@@ -32,6 +34,7 @@ export function useTableQuery<T>({
   orderBy = 'created_at',
   ascending = false,
   filterFn,
+  debounce = 300,
 }: UseTableQueryOptions): UseTableQueryResult<T> {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +43,7 @@ export function useTableQuery<T>({
   const [page, setPage] = useState(1);
   const mountedRef = useRef(true);
   const prevFilterRef = useRef(filterFn);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // 当 filterFn 引用变化时（筛选条件改变），自动重置到第 1 页
   if (prevFilterRef.current !== filterFn) {
@@ -77,13 +81,25 @@ export function useTableQuery<T>({
     }
   }, [table, pageSize, orderBy, ascending, filterFn, page]);
 
+  // Debounced fetch: delays execution when filterFn changes rapidly
   useEffect(() => {
     mountedRef.current = true;
-    fetchData();
-    return () => { mountedRef.current = false; };
-  }, [fetchData]);
+
+    if (debounce > 0) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(fetchData, debounce);
+    } else {
+      fetchData();
+    }
+
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(debounceRef.current);
+    };
+  }, [fetchData, debounce]);
 
   const refresh = useCallback(() => {
+    clearTimeout(debounceRef.current);
     setPage(1);
   }, []);
 

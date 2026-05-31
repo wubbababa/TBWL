@@ -46,7 +46,7 @@ export default function UnassociatedParcelsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-white rounded shadow-sm border border-gray-200">
+      <div className="card">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <Package className="w-5 h-5 text-gray-700" />
           <h1 className="text-lg font-bold text-gray-800">未关联包裹</h1>
@@ -56,7 +56,7 @@ export default function UnassociatedParcelsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col">
+      <div className="card flex flex-col">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <h2 className="text-lg font-bold text-gray-800">包裹列表</h2>
           <RefreshCw className={`w-4 h-4 text-[#3c8dbc] cursor-pointer hover:rotate-180 transition-transform duration-500 ${loading ? 'animate-spin' : ''}`} onClick={refresh} />

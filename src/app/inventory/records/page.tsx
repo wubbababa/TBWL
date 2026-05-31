@@ -48,7 +48,7 @@ export default function InventoryRecordsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-white rounded shadow-sm border border-gray-200">
+      <div className="card">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <ShoppingCart className="w-5 h-5 text-gray-700" />
           <h1 className="text-lg font-bold text-gray-800">库存调用记录</h1>
@@ -73,7 +73,7 @@ export default function InventoryRecordsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col">
+      <div className="card flex flex-col">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <h2 className="text-lg font-bold text-gray-800">调用记录</h2>
           <RefreshCw

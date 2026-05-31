@@ -12,6 +12,7 @@ import { CsvImportModal } from './CsvImportModal';
 import { WaybillUploadModal } from './WaybillUploadModal';
 import { AddOrderModal } from './AddOrderModal';
 import { downloadWaybillsBatch, type OrderWaybillFields } from '@/lib/waybill';
+import { useToast } from '@/components/ui/Toast';
 
 // lucide-react v1 may not export CloudSync — use a fallback
 let CloudSync: React.ComponentType<{ className?: string }>;
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
+  const { toast } = useToast();
   const [importOpen, setImportOpen] = useState(false);
   const [waybillOpen, setWaybillOpen] = useState(false);
   const [addOrderOpen, setAddOrderOpen] = useState(false);
@@ -55,7 +57,7 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
       downloadCsv(csv, `订单导出_${ts}.csv`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '未知错误';
-      alert('导出失败：' + msg);
+      toast('导出失败：' + msg, 'error');
     } finally {
       setExporting(false);
     }
@@ -100,13 +102,13 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
       const { downloaded, skipped } = await downloadWaybillsBatch(orders);
 
       if (downloaded === 0) {
-        alert('选中的订单均无面单可下载。');
+        toast('选中的订单均无面单可下载。', 'warning');
       } else if (skipped.length > 0) {
-        alert(`已下载 ${downloaded} 个面单。\n以下订单暂无面单，已跳过：\n${skipped.join('、')}`);
+        toast(`已下载 ${downloaded} 个面单，${skipped.length} 个订单暂无面单已跳过`, 'info');
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '未知错误';
-      alert('获取面单失败：' + msg);
+      toast('获取面单失败：' + msg, 'error');
     } finally {
       setDownloadingWaybills(false);
     }
@@ -115,7 +117,7 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
   /* ---- Guard: require selection ---- */
   const requireSelection = (): boolean => {
     if (selectedIds.length === 0) {
-      alert('请先勾选要操作的订单');
+      toast('请先勾选要操作的订单', 'warning');
       return false;
     }
     return true;
@@ -148,7 +150,7 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
       onActionComplete();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '未知错误';
-      alert('批量删除失败：' + msg);
+      toast('批量删除失败：' + msg, 'error');
     } finally {
       setBatchLoading(null);
     }
@@ -167,7 +169,7 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
       onActionComplete();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '未知错误';
-      alert(`操作失败：${msg}`);
+      toast(`操作失败：${msg}`, 'error');
     } finally {
       setBatchLoading(null);
     }

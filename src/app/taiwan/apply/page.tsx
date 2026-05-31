@@ -51,7 +51,7 @@ export default function TaiwanApplyPage() {
           onCreated={fetchRows}
         />
       )}
-      <div className="bg-white rounded shadow-sm border border-gray-200">
+      <div className="card">
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-700 min-w-[70px]">倉單號查詢</label>
@@ -127,7 +127,7 @@ export default function TaiwanApplyPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col">
+      <div className="card flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-[#f9fafb] border-y border-gray-200 text-[#4b646f] font-bold">

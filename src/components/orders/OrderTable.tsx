@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   RefreshCw, Maximize2, List, AlertCircle, Trash2, Loader2,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 import type { OrderFilters } from '@/app/orders/page';
 
 /** Rows per page for server-side pagination. */
@@ -118,6 +119,7 @@ export const OrderTable = ({
   selectedIds,
   onSelectionChange,
 }: Props) => {
+  const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1); // 1-based
@@ -208,7 +210,7 @@ export const OrderTable = ({
     return query;
   };
 
-  const fetchOrders = async (f: OrderFilters, targetPage: number) => {
+  const fetchOrders = useCallback(async (f: OrderFilters, targetPage: number) => {
     setLoading(true);
     setError(null);
     try {
@@ -250,7 +252,8 @@ export const OrderTable = ({
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableCols]);
 
   // A new query (search / tab change / clear) resets to the first page; a page
   // change re-fetches that page. Both are handled in one effect to avoid a
@@ -276,27 +279,38 @@ export const OrderTable = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryTrigger, page]);
 
-  // Probe once on mount which optional columns exist in the DB, so filters and
-  // display columns degrade gracefully before the migration is applied.
+  // Probe once on mount which optional columns exist in the DB.
+  // Use a single query selecting all optional columns; columns that don't exist
+  // will cause an error, so we fall back to individual probes only if needed.
   useEffect(() => {
     let active = true;
     (async () => {
-      const results = await Promise.all(
-        OPTIONAL_COLUMNS.map(async (col) => {
-          const { error } = await supabase
-            .from('orders')
-            .select(col)
-            .limit(1);
-          return error ? null : col;
-        }),
-      );
-      if (active) {
-        setAvailableCols(results.filter((c): c is string => c !== null));
+      // Try selecting all optional columns at once
+      const allCols = OPTIONAL_COLUMNS.join(',');
+      const { error: bulkErr } = await supabase
+        .from('orders')
+        .select(allCols)
+        .limit(1);
+
+      if (!active) return;
+
+      if (!bulkErr) {
+        // All columns exist
+        setAvailableCols([...OPTIONAL_COLUMNS]);
+      } else {
+        // Fallback: probe individually
+        const results = await Promise.all(
+          OPTIONAL_COLUMNS.map(async (col) => {
+            const { error } = await supabase.from('orders').select(col).limit(1);
+            return error ? null : col;
+          }),
+        );
+        if (active) {
+          setAvailableCols(results.filter((c): c is string => c !== null));
+        }
       }
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
   // ---- Checkbox helpers ----
@@ -359,7 +373,7 @@ export const OrderTable = ({
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '删除失败';
-      alert('删除失败：' + msg);
+      toast('删除失败：' + msg, 'error');
     } finally {
       if (mountedRef.current) {
         setDeletingId(null);

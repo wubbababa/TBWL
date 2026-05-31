@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Search, ChevronDown, User, X } from 'lucide-react';
@@ -26,24 +26,26 @@ export const Sidebar = () => {
     });
   }, [pathname]);
 
-  const toggleMenu = (label: string) => {
+  const toggleMenu = useCallback((label: string) => {
     setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
-  };
+  }, []);
 
-  // Filter menu items by search query
-  const filteredItems = searchQuery.trim()
-    ? MENU_ITEMS.map(item => {
-        const labelMatch = item.label.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchedSubs = item.submenu?.filter(sub =>
-          sub.label.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-        if (labelMatch) return item;
-        if (matchedSubs && matchedSubs.length > 0) {
-          return { ...item, submenu: matchedSubs, _forceOpen: true };
-        }
-        return null;
-      }).filter(Boolean) as typeof MENU_ITEMS
-    : MENU_ITEMS;
+  // Memoize filtered items to avoid recalculation on every render
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return MENU_ITEMS;
+    const q = searchQuery.toLowerCase();
+    return MENU_ITEMS.map(item => {
+      const labelMatch = item.label.toLowerCase().includes(q);
+      const matchedSubs = item.submenu?.filter(sub =>
+        sub.label.toLowerCase().includes(q)
+      );
+      if (labelMatch) return item;
+      if (matchedSubs && matchedSubs.length > 0) {
+        return { ...item, submenu: matchedSubs, _forceOpen: true };
+      }
+      return null;
+    }).filter(Boolean) as typeof MENU_ITEMS;
+  }, [searchQuery]);
 
   const isMenuOpen = (label: string, forceOpen?: boolean) =>
     forceOpen || openMenus[label] || false;

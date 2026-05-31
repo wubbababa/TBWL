@@ -53,7 +53,7 @@ export default function ReturnedParcelsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-white rounded shadow-sm border border-gray-200">
+      <div className="card">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <RotateCcw className="w-5 h-5 text-gray-700" />
           <h1 className="text-lg font-bold text-gray-800">退件包裹管理</h1>

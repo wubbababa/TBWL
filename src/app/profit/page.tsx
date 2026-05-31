@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Search, RefreshCw, ChevronDown, Calendar, Database } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
@@ -34,17 +34,18 @@ export default function OrderProfitPage() {
     filterFn,
   });
 
-  const sum = (key: keyof OrderProfit) =>
-    rows.reduce((acc, r) => acc + Number(r[key] ?? 0), 0).toFixed(2);
-
-  const stats = [
-    { label: '实付金额/CNY', value: sum('paid_amount') },
-    { label: '订单收入/CNY', value: sum('order_income') },
-    { label: '采购成本/CNY', value: sum('purchase_cost') },
-    { label: '库存成本/CNY', value: sum('inventory_cost') },
-    { label: '货代成本/CNY', value: sum('freight_cost') },
-    { label: '实际收入/CNY', value: sum('actual_income') },
-  ];
+  const stats = useMemo(() => {
+    const sum = (key: keyof OrderProfit) =>
+      rows.reduce((acc, r) => acc + Number(r[key] ?? 0), 0).toFixed(2);
+    return [
+      { label: '实付金额/CNY', value: sum('paid_amount') },
+      { label: '订单收入/CNY', value: sum('order_income') },
+      { label: '采购成本/CNY', value: sum('purchase_cost') },
+      { label: '库存成本/CNY', value: sum('inventory_cost') },
+      { label: '货代成本/CNY', value: sum('freight_cost') },
+      { label: '实际收入/CNY', value: sum('actual_income') },
+    ];
+  }, [rows]);
 
   const columns: Column<OrderProfit>[] = [
     { key: 'order_number', title: '订单编号', render: r => <span className="text-blue-600 text-xs font-mono">{r.order_number}</span> },
@@ -62,7 +63,7 @@ export default function OrderProfitPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-white rounded shadow-sm border border-gray-200">
+      <div className="card">
         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold text-gray-800">订单利润</h1>
@@ -80,7 +81,7 @@ export default function OrderProfitPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col">
+      <div className="card flex flex-col">
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3 items-end">
             <div className="lg:col-span-2">

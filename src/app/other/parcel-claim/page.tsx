@@ -50,7 +50,7 @@ export default function ParcelClaimPage() {
         <p>3.無主件倉庫會进行公示30天, 30天後無人認領, 倉庫即做銷毀處理, 不予任何查找或理賠</p>
       </div>
 
-      <div className="bg-white rounded shadow-sm border border-gray-200">
+      <div className="card">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <PackageSearch className="w-5 h-5 text-gray-700" />
           <h1 className="text-lg font-bold text-gray-800">包裹認領</h1>
@@ -82,7 +82,7 @@ export default function ParcelClaimPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col">
+      <div className="card flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-white border-y border-gray-200 text-gray-700 font-bold">

@@ -33,7 +33,7 @@ export default function ProductDatabasePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-white rounded shadow-sm border border-gray-200">
+      <div className="card">
         <div className="p-4 flex flex-wrap gap-3 items-center">
           <div className="w-full sm:w-64">
             <input type="text" placeholder="商品名/SKU" value={searchText} onChange={e => setSearchText(e.target.value)}
@@ -49,7 +49,7 @@ export default function ProductDatabasePage() {
         </div>
       </div>
 
-      <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col">
+      <div className="card flex flex-col">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <h2 className="text-lg font-bold text-gray-800">列表</h2>
           <RefreshCw

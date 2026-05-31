@@ -89,7 +89,7 @@ export default function TaiwanProductsPage() {
       </div>
 
       {/* Page Header Section */}
-      <div className="bg-white rounded shadow-sm border border-gray-200">
+      <div className="card">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <ShoppingCart className="w-5 h-5 text-gray-700" />
           <h1 className="text-lg font-bold text-gray-800">臺灣倉庫商品管理</h1>
@@ -115,7 +115,7 @@ export default function TaiwanProductsPage() {
       </div>
 
       {/* Main Content Card */}
-      <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col min-h-[400px]">
+      <div className="card flex flex-col min-h-[400px]">
         {/* Title and Refresh */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import React, { memo } from 'react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 export interface Column<T> {
   key: string;
@@ -28,6 +28,22 @@ interface DataTableProps<T> {
   pagination?: PaginationProps;
   error?: string | null;
 }
+
+/** Skeleton rows shown during loading */
+const SkeletonRows = memo(({ cols, rows = 5 }: { cols: number; rows?: number }) => (
+  <>
+    {[...Array(rows)].map((_, i) => (
+      <tr key={i} className="border-b border-gray-100">
+        {[...Array(cols)].map((_, j) => (
+          <td key={j} className="px-4 py-3">
+            <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: `${50 + Math.random() * 40}%` }} />
+          </td>
+        ))}
+      </tr>
+    ))}
+  </>
+));
+SkeletonRows.displayName = 'SkeletonRows';
 
 export function DataTable<T>({
   columns,
@@ -56,7 +72,7 @@ export function DataTable<T>({
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={colSpan} className="px-4 py-16 text-center"><RefreshCw className="w-6 h-6 animate-spin text-blue-500 mx-auto mb-2" /><div className="text-gray-400 text-sm">加载中...</div></td></tr>
+            <SkeletonRows cols={colSpan} />
           ) : error ? (
             <tr><td colSpan={colSpan} className="px-4 py-10 text-center text-red-500 text-sm">{error}</td></tr>
           ) : data.length === 0 ? (

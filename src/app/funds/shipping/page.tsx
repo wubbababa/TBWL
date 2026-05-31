@@ -51,7 +51,7 @@ export default function ShippingDetailsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-white rounded shadow-sm border border-gray-200">
+      <div className="card">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <CreditCard className="w-5 h-5 text-gray-700" />
           <h1 className="text-lg font-bold text-gray-800 uppercase">運輸費記錄</h1>
@@ -84,7 +84,7 @@ export default function ShippingDetailsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col">
+      <div className="card flex flex-col">
         <DataTable columns={columns} data={records} loading={loading} error={error} emptyText="暂无运输费记录"
           pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TrendingUp, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -47,7 +47,7 @@ export default function ProfitTrendChart() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -79,11 +79,11 @@ export default function ProfitTrendChart() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   // 监听容器宽度，实现响应式 SVG
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function ProfitTrendChart() {
   const yTicks = Array.from({ length: 5 }, (_, i) => (niceMax / 4) * i);
 
   return (
-    <div className="bg-white rounded shadow-sm border border-gray-200">
+    <div className="card">
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-5 h-5 text-[#00a65a]" />

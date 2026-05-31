@@ -12,6 +12,7 @@ import {
   ALLOWED_WAYBILL_EXTENSIONS,
   type OrderWaybillFields,
 } from '@/lib/waybill';
+import { useToast } from '@/components/ui/Toast';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -48,6 +49,7 @@ interface Props {
 /* ------------------------------------------------------------------ */
 
 export const WaybillUploadModal = ({ onClose, onUploadComplete, restrictToIds }: Props) => {
+  const { toast } = useToast();
   const [phase, setPhase] = useState<Phase>('select');
   const [rows, setRows] = useState<MatchedRow[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -78,7 +80,7 @@ export const WaybillUploadModal = ({ onClose, onUploadComplete, restrictToIds }:
 
         const { data, error } = await query;
         if (error) {
-          alert('匹配订单失败：' + error.message);
+          toast('匹配订单失败：' + error.message, 'error');
           setPhase('select');
           return;
         }
@@ -101,7 +103,7 @@ export const WaybillUploadModal = ({ onClose, onUploadComplete, restrictToIds }:
       setRows(matched);
       setPhase('preview');
     },
-    [restrictToIds],
+    [restrictToIds, toast],
   );
 
   /* ---- 文件选择/拖拽 ---- */

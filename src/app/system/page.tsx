@@ -43,7 +43,11 @@ export default function SystemSettingsPage() {
           <div 
             key={item.label}
             onClick={() => item.href && router.push(item.href)}
-            className={`p-5 bg-white rounded-xl border border-gray-200 shadow-sm transition-all group
+            onKeyDown={(e) => { if (item.href && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); router.push(item.href); } }}
+            tabIndex={item.href ? 0 : -1}
+            role={item.href ? 'button' : undefined}
+            aria-label={item.href ? `进入${item.label}` : `${item.label} - 即将上线`}
+            className={`p-5 card rounded-xl transition-all group outline-none focus-visible:ring-2 focus-visible:ring-blue-400
               ${item.href
                 ? 'hover:shadow-md hover:border-blue-300 cursor-pointer'
                 : 'opacity-60 cursor-not-allowed'
@@ -68,7 +72,7 @@ export default function SystemSettingsPage() {
       </div>
 
       {/* Detailed Section Example */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="card rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-bold text-gray-800">系统状态</h2>
           <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-100">

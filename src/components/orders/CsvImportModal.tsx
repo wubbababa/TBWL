@@ -4,6 +4,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { X, Upload, AlertTriangle, CheckCircle, Loader2, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { parseCsv, IMPORT_COLUMNS } from '@/lib/csv';
+import { useToast } from '@/components/ui/Toast';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -35,6 +36,7 @@ interface Props {
 
 export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
   /* state */
+  const { toast } = useToast();
   const [phase, setPhase] = useState<ImportPhase>('select');
   const [rows, setRows] = useState<PreviewRow[]>([]);
   const [fileName, setFileName] = useState('');
@@ -46,7 +48,7 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.name.endsWith('.csv')) {
-      alert('请选择 .csv 格式的文件');
+      toast('请选择 .csv 格式的文件', 'warning');
       return;
     }
 
@@ -55,7 +57,7 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
     const parsed = parseCsv(text);
 
     if (parsed.length === 0) {
-      alert('CSV 文件为空或格式不正确，请检查后重试。');
+      toast('CSV 文件为空或格式不正确，请检查后重试。', 'error');
       return;
     }
 
@@ -65,16 +67,16 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
     const recognised = headers.filter((h) => labelSet.has(h));
 
     if (recognised.length === 0) {
-      alert(
-        `CSV 列名无法识别。请确保 CSV 第一行是列标题，且至少包含以下列之一：\n\n` +
-          IMPORT_COLUMNS.map((c) => c.label).join('、'),
+      toast(
+        `CSV 列名无法识别。请确保第一行是列标题，且包含：${IMPORT_COLUMNS.slice(0, 3).map((c) => c.label).join('、')} 等`,
+        'error',
       );
       return;
     }
 
     setRows(parsed.map((data, i) => ({ index: i + 2, data })));
     setPhase('preview');
-  }, []);
+  }, [toast]);
 
   const onFileSelected = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

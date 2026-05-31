@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { 
   ShoppingCart, 
   ShoppingBag, 
@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import ProfitTrendChart from '@/components/home/ProfitTrendChart';
 
-const StatCard = ({ count, label, Icon, color, loading, href }: { count: string | number, label: string, Icon: React.ComponentType<{ className?: string }>, color: string, loading?: boolean, href?: string }) => (
+const StatCard = memo(({ count, label, Icon, color, loading, href }: { count: string | number, label: string, Icon: React.ComponentType<{ className?: string }>, color: string, loading?: boolean, href?: string }) => (
   <Link href={href || '#'} className={`${color} rounded-sm shadow-sm text-white flex flex-col relative overflow-hidden group h-[110px] cursor-pointer`}>
     <div className="p-4 z-10">
       <h3 className="text-3xl font-bold">{loading ? '...' : count}</h3>
@@ -26,7 +26,8 @@ const StatCard = ({ count, label, Icon, color, loading, href }: { count: string 
       <ArrowRight className="w-3 h-3" />
     </div>
   </Link>
-);
+));
+StatCard.displayName = 'StatCard';
 
 export default function HomePage() {
   const [stats, setStats] = useState({
@@ -43,29 +44,30 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [accountLoading, setAccountLoading] = useState(true);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
-      // 获取各状态数量
-      const { data: allData } = await supabase.from('orders').select('status');
-      
-      if (allData) {
-        const counts = {
-          all: allData.length,
-          pending: allData.filter(o => o.status === '待处理').length,
-          taiwan: allData.filter(o => o.status === '已送店' || o.status === '待确认入店').length,
-          abnormal: allData.filter(o => o.status === '异常件').length
-        };
-        setStats(counts);
-      }
+      // 使用 count 查询替代全量加载，大幅减少数据传输
+      const [allRes, pendingRes, taiwanRes, abnormalRes] = await Promise.all([
+        supabase.from('orders').select('*', { count: 'exact', head: true }),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', '待处理'),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).in('status', ['已送店', '待确认入店']),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', '异常件'),
+      ]);
+      setStats({
+        all: allRes.count ?? 0,
+        pending: pendingRes.count ?? 0,
+        taiwan: taiwanRes.count ?? 0,
+        abnormal: abnormalRes.count ?? 0,
+      });
     } catch (error) {
       console.error('Fetch stats error:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchAccountStats = async () => {
+  const fetchAccountStats = useCallback(async () => {
     setAccountLoading(true);
     try {
       const res = await fetch('/api/account-stats');
@@ -82,12 +84,12 @@ export default function HomePage() {
     } finally {
       setAccountLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchStats();
     fetchAccountStats();
-  }, []);
+  }, [fetchStats, fetchAccountStats]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -105,8 +107,8 @@ export default function HomePage() {
       {/* Main Grid: Announcement and Info */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left: System Announcement */}
-        <div className="lg:col-span-2 bg-white rounded shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-100 flex items-center gap-2">
+        <div className="lg:col-span-2 card">
+          <div className="card-header">
             <Megaphone className="w-5 h-5 text-gray-700" />
             <h2 className="text-lg font-bold text-gray-800">系统公告</h2>
           </div>
@@ -146,7 +148,7 @@ export default function HomePage() {
         {/* Right: Account Info and QR */}
         <div className="flex flex-col gap-6">
           {/* Account Info Card */}
-          <div className="bg-white rounded shadow-sm border border-gray-200">
+          <div className="card">
             <div className="p-4 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-800">賬戶信息</h2>
             </div>
@@ -178,7 +180,7 @@ export default function HomePage() {
           </div>
 
           {/* QR Code Card */}
-          <div className="bg-white rounded shadow-sm border border-gray-200 p-6 flex flex-col items-center">
+          <div className="card p-6 flex flex-col items-center">
             <h3 className="font-bold text-gray-800 mb-1">臺邦微信公眾號</h3>
             <p className="text-xs text-gray-500 mb-4 text-center">獲取訂單異常狀態推送服務</p>
             

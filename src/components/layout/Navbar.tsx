@@ -24,6 +24,7 @@ export const Navbar = () => {
   const { toggleSidebar } = useLayout();
   const { user, signOut } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const router = useRouter();
 
   const handleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -40,6 +41,20 @@ export const Navbar = () => {
     document.addEventListener('fullscreenchange', handler);
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+B: toggle sidebar
+      if (e.ctrlKey && e.key === 'b') { e.preventDefault(); toggleSidebar(); }
+      // Ctrl+H: go home
+      if (e.ctrlKey && e.key === 'h') { e.preventDefault(); router.push('/home'); }
+      // F11: fullscreen
+      if (e.key === 'F11') { e.preventDefault(); handleFullscreen(); }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [toggleSidebar, router]);
 
   return (
     <header className="h-12 bg-[#228b22] text-white flex items-center justify-between px-4 shadow-md z-10 flex-shrink-0">
@@ -107,16 +122,52 @@ export const Navbar = () => {
 
 // ─── Notification Bell ───────────────────────────────────────────────────────
 
-const MOCK_NOTIFICATIONS = [
-  { id: 1, text: '订单 ORD-TBWL-20260503-0009 状态更新为异常件', time: '5分钟前', read: false },
-  { id: 2, text: '包裹 SF3000000001 理赔申请已受理', time: '1小时前', read: false },
-  { id: 3, text: '台湾仓 TW-SKU-002 库存不足，请及时补货', time: '3小时前', read: true },
-];
+import { supabase } from '@/lib/supabase';
+
+interface Notification {
+  id: string;
+  text: string;
+  time: string;
+  read: boolean;
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return '刚刚';
+  if (mins < 60) return `${mins}分钟前`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}小时前`;
+  return `${Math.floor(hours / 24)}天前`;
+}
 
 const NotificationBell = () => {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
+
+  // Fetch recent operation logs as notifications
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const { data } = await supabase
+        .from('operation_logs')
+        .select('id, action, module, detail, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (data) {
+        setNotifications(data.map(row => ({
+          id: String(row.id),
+          text: `[${row.module}] ${row.action}${row.detail ? '：' + row.detail : ''}`,
+          time: timeAgo(row.created_at),
+          read: readIds.has(String(row.id)),
+        })));
+      }
+    })();
+  }, [open, readIds]);
+
   const unread = notifications.filter(n => !n.read).length;
 
   useEffect(() => {
@@ -127,8 +178,11 @@ const NotificationBell = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const markAllRead = () =>
+  const markAllRead = () => {
+    const allIds = new Set(notifications.map(n => n.id));
+    setReadIds(prev => new Set([...prev, ...allIds]));
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
 
   return (
     <div ref={ref} className="relative">

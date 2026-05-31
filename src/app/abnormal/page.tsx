@@ -4,6 +4,8 @@ import React, { useState, useCallback } from 'react';
 import { Search, RefreshCw, ShoppingCart, RotateCcw, AlertCircle } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import { useToast } from '@/components/ui/Toast';
+import { supabase } from '@/lib/supabase';
 
 interface AbnormalParcel {
   id: string;
@@ -17,6 +19,7 @@ interface AbnormalParcel {
 }
 
 export default function AbnormalParcelsPage() {
+  const { toast } = useToast();
   const [trackingFilter, setTrackingFilter] = useState('');
   const [orderFilter, setOrderFilter] = useState('');
 
@@ -46,7 +49,22 @@ export default function AbnormalParcelsPage() {
     { key: 'created_at', title: '创建时间', className: 'text-center', render: p => <span className="text-gray-500 text-xs">{new Date(p.created_at).toLocaleDateString('zh-CN')}</span> },
     { key: 'idle_days', title: '包裹闲置时长', className: 'text-center', render: p => <span className="text-red-500 font-medium">{p.idle_days}天</span> },
     { key: 'processed_at', title: '处理时间', className: 'text-center', render: p => <span className="text-gray-500 text-xs">{p.processed_at ? new Date(p.processed_at).toLocaleDateString('zh-CN') : '-'}</span> },
-    { key: 'action', title: '操作', className: 'text-center', render: () => <button className="text-blue-600 hover:underline text-xs font-bold">处理</button> },
+    { key: 'action', title: '操作', className: 'text-center', render: (p) => (
+      <button
+        onClick={async () => {
+          const { error: err } = await supabase
+            .from('abnormal_parcels')
+            .update({ process_action: '已处理', processed_at: new Date().toISOString() })
+            .eq('id', p.id);
+          if (err) { toast('处理失败：' + err.message, 'error'); }
+          else { toast('包裹已标记为已处理', 'success'); refresh(); }
+        }}
+        disabled={!!p.processed_at}
+        className={`text-xs font-bold ${p.processed_at ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:underline'}`}
+      >
+        {p.processed_at ? '已处理' : '处理'}
+      </button>
+    )},
   ];
 
   return (
@@ -57,7 +75,7 @@ export default function AbnormalParcelsPage() {
         <p>3.超過30天後還未處理的異常快遞包裹，倉庫即做销毁處理，不予任何查找或理赔</p>
       </div>
 
-      <div className="bg-white rounded shadow-sm border border-gray-200">
+      <div className="card">
         <div className="p-4 border-b border-gray-100 flex items-center gap-2">
           <ShoppingCart className="w-5 h-5 text-gray-700" />
           <h1 className="text-lg font-bold text-gray-800">异常包裹处理中心</h1>
