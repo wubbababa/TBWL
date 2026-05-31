@@ -1,11 +1,35 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // ── 认证 ──────────────────────────────────────────────
+  // 旧实现用一个全局共享的 anon 客户端裸查数据，任何人（含未登录者）
+  // 直接 GET /api/account-stats 即可拿到全公司的余额/消费/充值汇总。
+  // 这里基于请求 Cookie 中的会话做认证：未登录 → 401。
+  // 同时用「请求作用域」的客户端，避免跨请求共享 Supabase 实例。
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      // Route Handler 中无需把刷新后的 Cookie 写回响应，留空即可
+      setAll() {},
+    },
+  });
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: '未授权' }, { status: 401 });
+  }
+
   try {
     // 并行获取充值和消费记录
     const [rechargeResult, expenseResult] = await Promise.all([

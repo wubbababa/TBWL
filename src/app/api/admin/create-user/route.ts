@@ -23,6 +23,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '无效的会话，请重新登录' }, { status: 401 });
   }
 
+  // 1b. 鉴权：调用者必须是管理员。
+  //
+  // 旧实现只校验「是否登录」，任何登录用户都能创建新账号 —— 等于人人都是管理员。
+  // 这里要求调用者的 app_metadata.role === 'admin' 才放行。
+  //
+  // 为什么用 app_metadata 而不是 user_metadata：
+  //   - app_metadata 只能由 service_role / Admin API 写入，普通用户改不了；
+  //   - user_metadata 用户自己就能通过 auth.updateUser() 修改，会被用来提权。
+  //
+  // 设置管理员（在 Supabase SQL Editor 或通过 Admin API 执行其一）：
+  //   - SQL: UPDATE auth.users
+  //          SET raw_app_meta_data = raw_app_meta_data || '{"role":"admin"}'::jsonb
+  //          WHERE email = 'admin@example.com';
+  //   - 或: supabase.auth.admin.updateUserById(id, { app_metadata: { role: 'admin' } })
+  const callerRole = (caller.app_metadata as { role?: string } | null)?.role;
+  if (callerRole !== 'admin') {
+    return NextResponse.json({ error: '无权操作：仅管理员可创建账号' }, { status: 403 });
+  }
+
   // 2. Parse body
   let body: { email?: string; password?: string; display_name?: string };
   try {
