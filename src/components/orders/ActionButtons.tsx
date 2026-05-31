@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { generateCsv, downloadCsv, generateTemplateCsv, EXPORT_COLUMNS, IMPORT_COLUMNS } from '@/lib/csv';
 import { CsvImportModal } from './CsvImportModal';
 import { WaybillUploadModal } from './WaybillUploadModal';
+import { AddOrderModal } from './AddOrderModal';
 import { downloadWaybillsBatch, type OrderWaybillFields } from '@/lib/waybill';
 
 // lucide-react v1 may not export CloudSync — use a fallback
@@ -31,6 +32,7 @@ interface Props {
 export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
   const [importOpen, setImportOpen] = useState(false);
   const [waybillOpen, setWaybillOpen] = useState(false);
+  const [addOrderOpen, setAddOrderOpen] = useState(false);
   /** 上传面单时是否限制在勾选的订单范围内。 */
   const [waybillRestricted, setWaybillRestricted] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -182,7 +184,9 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
     <div className="flex flex-col gap-4 mb-4">
       {/* Primary Actions (White with border) */}
       <div className="flex flex-wrap items-center gap-2">
-        <button className="bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1.5 font-bold shadow-sm transition-all active:scale-95">
+        <button
+          onClick={() => setAddOrderOpen(true)}
+          className="bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1.5 font-bold shadow-sm transition-all active:scale-95">
           <Plus className="w-4 h-4 text-black" />
           <span>手工添加订单</span>
         </button>
@@ -356,6 +360,16 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
         onClose={() => setWaybillOpen(false)}
         onUploadComplete={handleWaybillUploadComplete}
         restrictToIds={waybillRestricted ? selectedIds : undefined}
+      />
+    )}
+
+    {addOrderOpen && (
+      <AddOrderModal
+        onClose={() => setAddOrderOpen(false)}
+        onAdded={() => {
+          setAddOrderOpen(false);
+          onActionComplete();
+        }}
       />
     )}
     </>

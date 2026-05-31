@@ -16,16 +16,14 @@ export const Sidebar = () => {
 
   // Auto-open the menu group that contains the active path
   useEffect(() => {
-    const initial: Record<string, boolean> = {};
     MENU_ITEMS.forEach(item => {
       const isSubPathActive = item.submenu?.some(
         sub => pathname === sub.path || pathname.startsWith(sub.path + '/')
       );
-      if (item.isOpen || isSubPathActive) {
-        initial[item.label] = true;
+      if (isSubPathActive) {
+        setOpenMenus(prev => prev[item.label] ? prev : { ...prev, [item.label]: true });
       }
     });
-    setOpenMenus(prev => ({ ...initial, ...prev }));
   }, [pathname]);
 
   const toggleMenu = (label: string) => {
@@ -53,7 +51,7 @@ export const Sidebar = () => {
   return (
     <aside
       className={`
-        bg-[#222d32] min-h-screen text-[#b8c7ce] flex flex-col shadow-xl z-20
+        bg-[#222d32] h-screen sticky top-0 text-[#b8c7ce] flex flex-col shadow-xl z-20
         transition-all duration-300 ease-in-out flex-shrink-0
         ${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}
       `}
@@ -169,10 +167,11 @@ export const Sidebar = () => {
                 {/* Submenu with slide animation */}
                 {item.submenu && (
                   <div
-                    className="overflow-hidden transition-all duration-200 ease-in-out"
+                    className={`overflow-hidden transition-all duration-200 ease-in-out ${
+                      isOpen ? 'opacity-100' : 'opacity-0'
+                    }`}
                     style={{
-                      maxHeight: isOpen ? `${item.submenu.length * 44}px` : '0px',
-                      opacity: isOpen ? 1 : 0,
+                      maxHeight: isOpen ? `${item.submenu.length * 48}px` : '0px',
                     }}
                   >
                     <div className="bg-[#2c3b41]">
