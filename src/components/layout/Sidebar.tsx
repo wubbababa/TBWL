@@ -51,8 +51,8 @@ export const Sidebar = () => {
   return (
     <aside
       className={`
-        bg-[#222d32] h-screen sticky top-0 text-[#b8c7ce] flex flex-col shadow-xl z-20
-        transition-all duration-300 ease-in-out flex-shrink-0
+        bg-[#222d32] h-full text-[#b8c7ce] flex flex-col shadow-xl z-20
+        transition-[width] duration-300 ease-in-out flex-shrink-0
         ${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}
       `}
     >      {/* User Info */}
@@ -105,7 +105,7 @@ export const Sidebar = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto scrollbar-hide pb-4">
+      <nav className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide pb-4">
         {filteredItems.length === 0 ? (
           <div className="px-4 py-8 text-center text-[#4b646f] text-sm">
             未找到匹配菜单

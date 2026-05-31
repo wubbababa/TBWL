@@ -103,6 +103,10 @@ export const FilterForm = ({ filters, onFilterChange, onSearch, onClear }: Props
             className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm appearance-none bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="">选择店铺</option>
+            <option value="深圳仓">深圳仓</option>
+            <option value="台北仓">台北仓</option>
+            <option value="台中仓">台中仓</option>
+            <option value="高雄仓">高雄仓</option>
           </select>
           <ChevronDown className="absolute right-2 top-2 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
@@ -114,6 +118,10 @@ export const FilterForm = ({ filters, onFilterChange, onSearch, onClear }: Props
             className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm appearance-none bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="">订单类型</option>
+            <option value="普通订单">普通订单</option>
+            <option value="预售订单">预售订单</option>
+            <option value="补发订单">补发订单</option>
+            <option value="退货订单">退货订单</option>
           </select>
           <ChevronDown className="absolute right-2 top-2 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
@@ -138,36 +146,48 @@ export const FilterForm = ({ filters, onFilterChange, onSearch, onClear }: Props
           </select>
           <ChevronDown className="absolute right-2 top-2 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
-        <input
-          name="fetchTime"
-          value={filters.fetchTime}
-          onChange={handleChange}
-          placeholder="获取时间"
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-        <input
-          name="submitTime"
-          value={filters.submitTime}
-          onChange={handleChange}
-          placeholder="提交时间"
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+        <label className="flex items-center border border-gray-300 rounded px-2 py-1 text-sm focus-within:ring-1 focus-within:ring-blue-500">
+          <span className="text-gray-400 text-xs mr-2 shrink-0">获取</span>
+          <input
+            type="date"
+            name="fetchTime"
+            value={filters.fetchTime}
+            onChange={handleChange}
+            className="flex-1 min-w-0 bg-transparent focus:outline-none text-sm"
+          />
+        </label>
+        <label className="flex items-center border border-gray-300 rounded px-2 py-1 text-sm focus-within:ring-1 focus-within:ring-blue-500">
+          <span className="text-gray-400 text-xs mr-2 shrink-0">提交</span>
+          <input
+            type="date"
+            name="submitTime"
+            value={filters.submitTime}
+            onChange={handleChange}
+            className="flex-1 min-w-0 bg-transparent focus:outline-none text-sm"
+          />
+        </label>
 
         {/* Row 3 Partial */}
-        <input
-          name="transferTime"
-          value={filters.transferTime}
-          onChange={handleChange}
-          placeholder="转运时间"
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-        <input
-          name="storeEntryTime"
-          value={filters.storeEntryTime}
-          onChange={handleChange}
-          placeholder="入店时间"
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 lg:col-span-2 xl:col-span-3"
-        />
+        <label className="flex items-center border border-gray-300 rounded px-2 py-1 text-sm focus-within:ring-1 focus-within:ring-blue-500">
+          <span className="text-gray-400 text-xs mr-2 shrink-0">转运</span>
+          <input
+            type="date"
+            name="transferTime"
+            value={filters.transferTime}
+            onChange={handleChange}
+            className="flex-1 min-w-0 bg-transparent focus:outline-none text-sm"
+          />
+        </label>
+        <label className="flex items-center border border-gray-300 rounded px-2 py-1 text-sm focus-within:ring-1 focus-within:ring-blue-500 lg:col-span-2 xl:col-span-3">
+          <span className="text-gray-400 text-xs mr-2 shrink-0">入店</span>
+          <input
+            type="date"
+            name="storeEntryTime"
+            value={filters.storeEntryTime}
+            onChange={handleChange}
+            className="flex-1 min-w-0 bg-transparent focus:outline-none text-sm"
+          />
+        </label>
 
         {/* Action Buttons in Form */}
         <div className="flex gap-2 lg:col-span-1">

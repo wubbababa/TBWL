@@ -1,9 +1,64 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { RefreshCw, Maximize2, List, AlertCircle, Trash2, Loader2 } from 'lucide-react';
+import {
+  RefreshCw, Maximize2, List, AlertCircle, Trash2, Loader2,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { OrderFilters } from '@/app/orders/page';
+
+/** Rows per page for server-side pagination. */
+const PAGE_SIZE = 20;
+
+/**
+ * Optional columns that only exist after running
+ * `supabase/orders_filter_columns.sql`. The table probes for them at runtime
+ * so the page works whether or not the migration has been applied — filters
+ * and display columns light up automatically once the columns exist.
+ */
+interface OptionalCol {
+  key: string;
+  label: string;
+  date?: boolean;
+}
+
+const OPTIONAL_DISPLAY: OptionalCol[] = [
+  { key: 'recipient', label: '收件人' },
+  { key: 'orderer', label: '下单人' },
+  { key: 'store_name', label: '店铺' },
+  { key: 'order_type', label: '订单类型' },
+  { key: 'submitted_at', label: '提交时间', date: true },
+  { key: 'transferred_at', label: '转运时间', date: true },
+  { key: 'store_entry_at', label: '入店时间', date: true },
+];
+
+const OPTIONAL_COLUMNS = OPTIONAL_DISPLAY.map((c) => c.key);
+
+/** Compact date formatter for table cells. */
+function formatCellDate(iso?: string | null): string {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString('zh-CN', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+/**
+ * Convert a `YYYY-MM-DD` day string into an ISO half-open range
+ * `[start, end)` covering that whole local calendar day. Returns null for
+ * empty/invalid input so callers can skip the filter.
+ */
+function dayRange(day: string): { start: string; end: string } | null {
+  if (!day) return null;
+  const start = new Date(`${day}T00:00:00`);
+  if (Number.isNaN(start.getTime())) return null;
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
 
 export interface Order {
   id: string | number;
@@ -15,6 +70,13 @@ export interface Order {
   tracking_info: string;
   created_at: string;
   updated_at?: string;
+  recipient?: string | null;
+  orderer?: string | null;
+  store_name?: string | null;
+  order_type?: string | null;
+  submitted_at?: string | null;
+  transferred_at?: string | null;
+  store_entry_at?: string | null;
   waybill_path?: string | null;
   waybill_filename?: string | null;
   waybill_uploaded_at?: string | null;
@@ -57,51 +119,113 @@ export const OrderTable = ({
   onSelectionChange,
 }: Props) => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1); // 1-based
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  /** Subset of OPTIONAL_COLUMNS that actually exist in the DB (probed once). */
+  const [availableCols, setAvailableCols] = useState<string[]>([]);
   const mountedRef = useRef(true);
 
-  const fetchOrders = async (f: OrderFilters) => {
+  const has = (col: string) => availableCols.includes(col);
+  const visibleOptional = OPTIONAL_DISPLAY.filter((c) => availableCols.includes(c.key));
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  /**
+   * Build the filtered orders query shared by data + count. Using
+   * `count: 'exact'` returns the total matching row count alongside the
+   * paginated rows in a single request.
+   */
+  const buildQuery = (f: OrderFilters) => {
+    let query = supabase
+      .from('orders')
+      .select('*', { count: 'exact' });
+
+    // 1) Tab filter → status, unless "所有订单"
+    const effectiveStatus = f.status || (f.tab !== '所有订单' ? f.tab : '');
+    if (effectiveStatus) {
+      query = query.eq('status', effectiveStatus);
+    }
+
+    // 2) Search text → match order_number OR tracking_info
+    if (f.searchText.trim()) {
+      const pattern = `%${f.searchText.trim()}%`;
+      query = query.or(
+        `order_number.ilike.${pattern},tracking_info.ilike.${pattern}`,
+      );
+    }
+
+    // 3) Shipping method
+    if (f.shippingMethod) {
+      query = query.eq('shipping_method', f.shippingMethod);
+    }
+
+    // 4) Order ID
+    if (f.orderId.trim()) {
+      query = query.eq('id', f.orderId.trim());
+    }
+
+    // 5) Recipient (name / phone)
+    if (f.recipient.trim() && has('recipient')) {
+      query = query.ilike('recipient', `%${f.recipient.trim()}%`);
+    }
+
+    // 6) Orderer (下单人)
+    if (f.orderBy.trim() && has('orderer')) {
+      query = query.ilike('orderer', `%${f.orderBy.trim()}%`);
+    }
+
+    // 7) Store
+    if (f.store && has('store_name')) {
+      query = query.eq('store_name', f.store);
+    }
+
+    // 8) Order type
+    if (f.orderType && has('order_type')) {
+      query = query.eq('order_type', f.orderType);
+    }
+
+    // 9) Date filters — each input is a single day (YYYY-MM-DD); match the
+    //    whole calendar day range [day 00:00, nextDay 00:00).
+    //    `created_at` always exists; the rest are guarded by `has()`.
+    const dayFilters: Array<[string, string]> = [
+      ['created_at', f.fetchTime],
+      ['submitted_at', f.submitTime],
+      ['transferred_at', f.transferTime],
+      ['store_entry_at', f.storeEntryTime],
+    ];
+    for (const [column, day] of dayFilters) {
+      if (column !== 'created_at' && !has(column)) continue;
+      const range = dayRange(day);
+      if (range) {
+        query = query.gte(column, range.start).lt(column, range.end);
+      }
+    }
+
+    return query;
+  };
+
+  const fetchOrders = async (f: OrderFilters, targetPage: number) => {
     setLoading(true);
     setError(null);
     try {
-      let query = supabase.from('orders').select('*');
+      const from = (targetPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
 
-      // 1) Tab filter → status, unless "所有订单"
-      const effectiveStatus = f.status || (f.tab !== '所有订单' ? f.tab : '');
+      const query = buildQuery(f)
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
-      if (effectiveStatus) {
-        query = query.eq('status', effectiveStatus);
-      }
-
-      // 2) Search text → match order_number OR tracking_info
-      if (f.searchText.trim()) {
-        const pattern = `%${f.searchText.trim()}%`;
-        query = query.or(
-          `order_number.ilike.${pattern},tracking_info.ilike.${pattern}`,
-        );
-      }
-
-      // 3) Shipping method
-      if (f.shippingMethod) {
-        query = query.eq('shipping_method', f.shippingMethod);
-      }
-
-      // 4) Order ID
-      if (f.orderId.trim()) {
-        query = query.eq('id', f.orderId.trim());
-      }
-
-      query = query.order('created_at', { ascending: false });
-
-      const { data, error: fetchError } = await query;
+      const { data, count, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
       if (mountedRef.current) {
         setOrders(data || []);
+        setTotal(count ?? 0);
         // Clear selection when data reloads
         onSelectionChange([]);
       }
@@ -128,14 +252,52 @@ export const OrderTable = ({
     }
   };
 
+  // A new query (search / tab change / clear) resets to the first page; a page
+  // change re-fetches that page. Both are handled in one effect to avoid a
+  // double fetch when resetting the page.
+  const lastTriggerRef = useRef(queryTrigger);
   useEffect(() => {
     mountedRef.current = true;
-    fetchOrders(filters);
+
+    if (lastTriggerRef.current !== queryTrigger) {
+      lastTriggerRef.current = queryTrigger;
+      if (page !== 1) {
+        setPage(1); // will re-run this effect with page === 1
+        return () => {
+          mountedRef.current = false;
+        };
+      }
+    }
+
+    fetchOrders(filters, page);
     return () => {
       mountedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryTrigger]);
+  }, [queryTrigger, page]);
+
+  // Probe once on mount which optional columns exist in the DB, so filters and
+  // display columns degrade gracefully before the migration is applied.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const results = await Promise.all(
+        OPTIONAL_COLUMNS.map(async (col) => {
+          const { error } = await supabase
+            .from('orders')
+            .select(col)
+            .limit(1);
+          return error ? null : col;
+        }),
+      );
+      if (active) {
+        setAvailableCols(results.filter((c): c is string => c !== null));
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // ---- Checkbox helpers ----
   const allVisibleIds = orders.map((o) => String(o.id));
@@ -185,8 +347,15 @@ export const OrderTable = ({
       }
 
       if (mountedRef.current) {
-        setOrders((prev) => prev.filter((o) => String(o.id) !== id));
+        // Re-fetch the current page so the total count stays accurate and any
+        // row from the next page shifts up to fill the gap. If this was the
+        // last row on a page beyond the first, step back a page.
         onSelectionChange(selectedIds.filter((s) => s !== id));
+        if (orders.length === 1 && page > 1) {
+          setPage((p) => p - 1);
+        } else {
+          fetchOrders(filters, page);
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '删除失败';
@@ -201,7 +370,11 @@ export const OrderTable = ({
 
   const columns = [
     '订单编号', '物流方式', '商品清单', '备注/留言', '操作', '状态&打包状态', '货况信息',
+    ...visibleOptional.map((c) => c.label),
   ];
+
+  /** Total column count incl. the leading checkbox column (for empty/loading colSpan). */
+  const colSpan = columns.length + 1;
 
   return (
     <div className="bg-white border border-gray-200 rounded shadow-sm overflow-hidden min-h-[400px]">
@@ -216,7 +389,12 @@ export const OrderTable = ({
           )}
           {!loading && !error && (
             <span className="text-xs text-gray-400">
-              共 {orders.length} 条
+              共 {total} 条
+              {totalPages > 1 && (
+                <span className="ml-1">
+                  · 第 {page}/{totalPages} 页
+                </span>
+              )}
               {selectedIds.length > 0 && (
                 <span className="ml-2 text-[#3c8dbc] font-medium">
                   已选 {selectedIds.length} 条
@@ -227,7 +405,7 @@ export const OrderTable = ({
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => fetchOrders(filters)}
+            onClick={() => fetchOrders(filters, page)}
             disabled={loading}
             className={`p-1.5 hover:bg-gray-200 rounded transition-colors ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             title="刷新数据"
@@ -275,7 +453,7 @@ export const OrderTable = ({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-4 py-20 text-center">
+                <td colSpan={colSpan} className="px-4 py-20 text-center">
                   <div className="flex flex-col items-center justify-center gap-3 text-gray-400">
                     <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
                     <span className="animate-pulse">正在从 Supabase 获取订单…</span>
@@ -360,12 +538,27 @@ export const OrderTable = ({
                     <td className="px-4 py-3 border-r border-gray-200 text-xs text-gray-500 font-mono tracking-tight">
                       {order.tracking_info || '暂无物流信息'}
                     </td>
+                    {visibleOptional.map((c) => {
+                      const raw = (order as unknown as Record<string, unknown>)[c.key] as
+                        | string
+                        | null
+                        | undefined;
+                      const display = c.date ? formatCellDate(raw) : raw || '-';
+                      return (
+                        <td
+                          key={c.key}
+                          className="px-4 py-3 border-r border-gray-200 last:border-r-0 text-xs text-gray-600 whitespace-nowrap"
+                        >
+                          {display}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={8} className="px-4 py-20 text-center text-gray-400">
+                <td colSpan={colSpan} className="px-4 py-20 text-center text-gray-400">
                   <div className="flex flex-col items-center gap-3">
                     <div className="bg-gray-100 p-4 rounded-full">
                       <List className="w-10 h-10 opacity-20" />
@@ -385,6 +578,52 @@ export const OrderTable = ({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination footer */}
+      {!loading && !error && total > 0 && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-600">
+          <span>
+            第 {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} 条 / 共 {total} 条
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(1)}
+              disabled={page <= 1}
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+              title="首页"
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+              title="上一页"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="px-2 font-medium text-gray-700">
+              {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+              title="下一页"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages}
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+              title="末页"
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
