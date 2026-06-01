@@ -41,9 +41,12 @@ export function useTableQuery<T>({
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
   const mountedRef = useRef(true);
   const prevFilterRef = useRef(filterFn);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const isFirstFetch = useRef(true);
+  const fetchIdRef = useRef(0);
 
   // 当 filterFn 引用变化时（筛选条件改变），自动重置到第 1 页
   if (prevFilterRef.current !== filterFn) {
@@ -54,6 +57,7 @@ export function useTableQuery<T>({
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const fetchData = useCallback(async () => {
+    const fetchId = ++fetchIdRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -68,24 +72,30 @@ export function useTableQuery<T>({
         .range(from, to);
 
       if (fetchError) throw fetchError;
-      if (mountedRef.current) {
+      // Only apply result if this is still the latest request
+      if (mountedRef.current && fetchId === fetchIdRef.current) {
         setData((result as T[]) || []);
         setTotal(count ?? 0);
       }
     } catch (err: unknown) {
-      if (mountedRef.current) {
+      if (mountedRef.current && fetchId === fetchIdRef.current) {
         setError(err instanceof Error ? err.message : '数据加载失败');
       }
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (mountedRef.current && fetchId === fetchIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [table, pageSize, orderBy, ascending, filterFn, page]);
 
-  // Debounced fetch: delays execution when filterFn changes rapidly
+  // Fetch with debounce (skip debounce on first load and manual refresh)
   useEffect(() => {
     mountedRef.current = true;
 
-    if (debounce > 0) {
+    if (isFirstFetch.current) {
+      isFirstFetch.current = false;
+      fetchData();
+    } else if (debounce > 0) {
       clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(fetchData, debounce);
     } else {
@@ -96,11 +106,13 @@ export function useTableQuery<T>({
       mountedRef.current = false;
       clearTimeout(debounceRef.current);
     };
-  }, [fetchData, debounce]);
+  }, [fetchData, debounce, refreshKey]);
 
   const refresh = useCallback(() => {
     clearTimeout(debounceRef.current);
+    isFirstFetch.current = true; // skip debounce on refresh
     setPage(1);
+    setRefreshKey(k => k + 1);
   }, []);
 
   return { data, loading, error, total, page, totalPages, setPage, refresh };

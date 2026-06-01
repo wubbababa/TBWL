@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 export interface Column<T> {
@@ -29,14 +29,20 @@ interface DataTableProps<T> {
   error?: string | null;
 }
 
+/** Pre-computed skeleton widths to avoid layout shift on re-render */
+const SKELETON_WIDTHS = [65, 80, 55, 72, 60, 88, 50, 75, 68, 82];
+
 /** Skeleton rows shown during loading */
 const SkeletonRows = memo(({ cols, rows = 5 }: { cols: number; rows?: number }) => (
   <>
-    {[...Array(rows)].map((_, i) => (
-      <tr key={i} className="border-b border-gray-100">
-        {[...Array(cols)].map((_, j) => (
+    {Array.from({ length: rows }, (_, i) => (
+      <tr key={i} className="border-b border-gray-100" aria-hidden="true">
+        {Array.from({ length: cols }, (_, j) => (
           <td key={j} className="px-4 py-3">
-            <div className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: `${50 + Math.random() * 40}%` }} />
+            <div
+              className="h-4 bg-gray-100 rounded animate-pulse"
+              style={{ width: `${SKELETON_WIDTHS[(i * cols + j) % SKELETON_WIDTHS.length]}%` }}
+            />
           </td>
         ))}
       </tr>
@@ -59,14 +65,26 @@ export function DataTable<T>({
   const getKey = (row: T, i: number) =>
     typeof rowKey === 'function' ? rowKey(row) : String((row as Record<string, unknown>)[rowKey as string] ?? i);
 
+  // Memoize pagination info text
+  const paginationInfo = useMemo(() => {
+    if (!pagination || pagination.total <= 0) return '';
+    const start = (pagination.page - 1) * pagination.pageSize + 1;
+    const end = Math.min(pagination.page * pagination.pageSize, pagination.total);
+    return `第 ${start}–${end} 条 / 共 ${pagination.total} 条`;
+  }, [pagination]);
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto" role="region" aria-label="数据表格">
+      <table className="w-full text-sm" role="table">
         <thead className="bg-white border-y border-gray-200 text-gray-700 font-bold">
           <tr>
-            {checkbox && <th className="px-4 py-3 text-left"><input type="checkbox" className="rounded border-gray-300" /></th>}
+            {checkbox && (
+              <th className="px-4 py-3 text-left" scope="col">
+                <input type="checkbox" className="rounded border-gray-300" aria-label="全选" />
+              </th>
+            )}
             {columns.map(col => (
-              <th key={col.key} className={`px-4 py-3 whitespace-nowrap ${col.className || ''}`}>{col.title}</th>
+              <th key={col.key} scope="col" className={`px-4 py-3 whitespace-nowrap ${col.className || ''}`}>{col.title}</th>
             ))}
           </tr>
         </thead>
@@ -74,12 +92,12 @@ export function DataTable<T>({
           {loading ? (
             <SkeletonRows cols={colSpan} />
           ) : error ? (
-            <tr><td colSpan={colSpan} className="px-4 py-10 text-center text-red-500 text-sm">{error}</td></tr>
+            <tr><td colSpan={colSpan} className="px-4 py-10 text-center text-red-500 text-sm" role="alert">{error}</td></tr>
           ) : data.length === 0 ? (
             <tr><td colSpan={colSpan} className="px-4 py-10 text-center text-gray-400">{emptyText}</td></tr>
           ) : data.map((row, i) => (
             <tr key={getKey(row, i)} className="border-b border-gray-100 hover:bg-gray-50">
-              {checkbox && <td className="px-4 py-3 text-left"><input type="checkbox" className="rounded border-gray-300" /></td>}
+              {checkbox && <td className="px-4 py-3 text-left"><input type="checkbox" className="rounded border-gray-300" aria-label={`选择第 ${i + 1} 行`} /></td>}
               {columns.map(col => (
                 <td key={col.key} className={`px-4 py-3 ${col.className || ''}`}>
                   {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '-')}
@@ -92,30 +110,28 @@ export function DataTable<T>({
 
       {/* Pagination footer */}
       {pagination && !loading && !error && pagination.total > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-600">
-          <span>
-            第 {(pagination.page - 1) * pagination.pageSize + 1}–{Math.min(pagination.page * pagination.pageSize, pagination.total)} 条 / 共 {pagination.total} 条
-          </span>
+        <nav className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-600" aria-label="分页导航">
+          <span aria-live="polite">{paginationInfo}</span>
           <div className="flex items-center gap-1">
             <button onClick={() => pagination.setPage(1)} disabled={pagination.page <= 1}
-              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed" title="首页">
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed" aria-label="首页">
               <ChevronsLeft className="w-4 h-4" />
             </button>
             <button onClick={() => pagination.setPage(pagination.page - 1)} disabled={pagination.page <= 1}
-              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed" title="上一页">
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed" aria-label="上一页">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-2 font-medium text-gray-700">{pagination.page} / {pagination.totalPages}</span>
+            <span className="px-2 font-medium text-gray-700" aria-current="page">{pagination.page} / {pagination.totalPages}</span>
             <button onClick={() => pagination.setPage(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages}
-              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed" title="下一页">
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed" aria-label="下一页">
               <ChevronRight className="w-4 h-4" />
             </button>
             <button onClick={() => pagination.setPage(pagination.totalPages)} disabled={pagination.page >= pagination.totalPages}
-              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed" title="末页">
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed" aria-label="末页">
               <ChevronsRight className="w-4 h-4" />
             </button>
           </div>
-        </div>
+        </nav>
       )}
 
       {/* Fallback: simple count when no pagination */}

@@ -98,31 +98,38 @@ export default function ProfitTrendChart() {
 
   const total = useMemo(() => points.reduce((s, p) => s + p.value, 0), [points]);
 
-  // 几何计算
+  // 几何计算 - memo 化避免 hover 变化时重新计算
   const height = 220;
   const padding = { top: 24, right: 24, bottom: 32, left: 56 };
-  const innerW = Math.max(width - padding.left - padding.right, 10);
-  const innerH = height - padding.top - padding.bottom;
 
-  const maxVal = Math.max(...points.map((p) => p.value), 0);
-  const niceMax = maxVal <= 0 ? 100 : Math.ceil(maxVal / 4) * 4 || maxVal;
+  const geometry = useMemo(() => {
+    const innerW = Math.max(width - padding.left - padding.right, 10);
+    const innerH = height - padding.top - padding.bottom;
+    const maxVal = Math.max(...points.map((p) => p.value), 0);
+    const niceMax = maxVal <= 0 ? 100 : Math.ceil(maxVal / 4) * 4 || maxVal;
 
-  const xFor = (i: number) =>
-    padding.left + (points.length <= 1 ? innerW / 2 : (innerW * i) / (points.length - 1));
-  const yFor = (v: number) => padding.top + innerH - (niceMax === 0 ? 0 : (innerH * v) / niceMax);
+    const xFor = (i: number) =>
+      padding.left + (points.length <= 1 ? innerW / 2 : (innerW * i) / (points.length - 1));
+    const yFor = (v: number) => padding.top + innerH - (niceMax === 0 ? 0 : (innerH * v) / niceMax);
 
-  const linePath = points
-    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i).toFixed(1)} ${yFor(p.value).toFixed(1)}`)
-    .join(' ');
+    const linePath = points
+      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i).toFixed(1)} ${yFor(p.value).toFixed(1)}`)
+      .join(' ');
 
-  const areaPath =
-    points.length > 0
-      ? `${linePath} L ${xFor(points.length - 1).toFixed(1)} ${(padding.top + innerH).toFixed(1)} ` +
-        `L ${xFor(0).toFixed(1)} ${(padding.top + innerH).toFixed(1)} Z`
-      : '';
+    const areaPath =
+      points.length > 0
+        ? `${linePath} L ${xFor(points.length - 1).toFixed(1)} ${(padding.top + innerH).toFixed(1)} ` +
+          `L ${xFor(0).toFixed(1)} ${(padding.top + innerH).toFixed(1)} Z`
+        : '';
 
-  // Y 轴刻度（5 条）
-  const yTicks = Array.from({ length: 5 }, (_, i) => (niceMax / 4) * i);
+    const yTicks = Array.from({ length: 5 }, (_, i) => (niceMax / 4) * i);
+
+    const pointCoords = points.map((p, i) => ({ x: xFor(i), y: yFor(p.value) }));
+
+    return { innerW, innerH, linePath, areaPath, yTicks, pointCoords, niceMax };
+  }, [points, width]);
+
+  const { innerW, linePath, areaPath, yTicks, pointCoords } = geometry;
 
   return (
     <div className="card">
@@ -157,7 +164,7 @@ export default function ProfitTrendChart() {
 
             {/* 网格线 + Y 轴刻度 */}
             {yTicks.map((t, i) => {
-              const y = yFor(t);
+              const y = padding.top + (height - padding.top - padding.bottom) - (geometry.niceMax === 0 ? 0 : ((height - padding.top - padding.bottom) * t) / geometry.niceMax);
               return (
                 <g key={i}>
                   <line
@@ -185,8 +192,7 @@ export default function ProfitTrendChart() {
 
             {/* X 轴标签 + 数据点 */}
             {points.map((p, i) => {
-              const x = xFor(i);
-              const y = yFor(p.value);
+              const { x, y } = pointCoords[i];
               const active = hover === i;
               return (
                 <g key={p.key}>
@@ -208,7 +214,7 @@ export default function ProfitTrendChart() {
                     x={x - innerW / (points.length * 2 || 1)}
                     y={padding.top}
                     width={innerW / (points.length || 1)}
-                    height={innerH}
+                    height={height - padding.top - padding.bottom}
                     fill="transparent"
                     onMouseEnter={() => setHover(i)}
                     onMouseLeave={() => setHover((h) => (h === i ? null : h))}

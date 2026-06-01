@@ -130,18 +130,18 @@ export const OrderTable = ({
   /** Subset of OPTIONAL_COLUMNS that actually exist in the DB (probed once). */
   const [availableCols, setAvailableCols] = useState<string[]>([]);
   const mountedRef = useRef(true);
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
 
-  const has = (col: string) => availableCols.includes(col);
   const visibleOptional = OPTIONAL_DISPLAY.filter((c) => availableCols.includes(c.key));
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   /**
-   * Build the filtered orders query shared by data + count. Using
-   * `count: 'exact'` returns the total matching row count alongside the
-   * paginated rows in a single request.
+   * Build the filtered orders query. Memoized with availableCols to avoid
+   * stale closure issues.
    */
-  const buildQuery = (f: OrderFilters) => {
+  const buildQuery = useCallback((f: OrderFilters) => {
     let query = supabase
       .from('orders')
       .select('*', { count: 'exact' });
@@ -171,28 +171,28 @@ export const OrderTable = ({
     }
 
     // 5) Recipient (name / phone)
-    if (f.recipient.trim() && has('recipient')) {
+    if (f.recipient.trim() && availableCols.includes('recipient')) {
       query = query.ilike('recipient', `%${f.recipient.trim()}%`);
     }
 
     // 6) Orderer (下单人)
-    if (f.orderBy.trim() && has('orderer')) {
+    if (f.orderBy.trim() && availableCols.includes('orderer')) {
       query = query.ilike('orderer', `%${f.orderBy.trim()}%`);
     }
 
     // 7) Store
-    if (f.store && has('store_name')) {
+    if (f.store && availableCols.includes('store_name')) {
       query = query.eq('store_name', f.store);
     }
 
     // 8) Order type
-    if (f.orderType && has('order_type')) {
+    if (f.orderType && availableCols.includes('order_type')) {
       query = query.eq('order_type', f.orderType);
     }
 
     // 9) Date filters — each input is a single day (YYYY-MM-DD); match the
     //    whole calendar day range [day 00:00, nextDay 00:00).
-    //    `created_at` always exists; the rest are guarded by `has()`.
+    //    `created_at` always exists; the rest are guarded by availableCols.
     const dayFilters: Array<[string, string]> = [
       ['created_at', f.fetchTime],
       ['submitted_at', f.submitTime],
@@ -200,7 +200,7 @@ export const OrderTable = ({
       ['store_entry_at', f.storeEntryTime],
     ];
     for (const [column, day] of dayFilters) {
-      if (column !== 'created_at' && !has(column)) continue;
+      if (column !== 'created_at' && !availableCols.includes(column)) continue;
       const range = dayRange(day);
       if (range) {
         query = query.gte(column, range.start).lt(column, range.end);
@@ -208,7 +208,7 @@ export const OrderTable = ({
     }
 
     return query;
-  };
+  }, [availableCols]);
 
   const fetchOrders = useCallback(async (f: OrderFilters, targetPage: number) => {
     setLoading(true);
@@ -229,7 +229,7 @@ export const OrderTable = ({
         setOrders(data || []);
         setTotal(count ?? 0);
         // Clear selection when data reloads
-        onSelectionChange([]);
+        onSelectionChangeRef.current([]);
       }
     } catch (err: unknown) {
       console.error('Supabase fetch error:', err);
@@ -252,13 +252,15 @@ export const OrderTable = ({
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableCols]);
+  }, [buildQuery]);
 
   // A new query (search / tab change / clear) resets to the first page; a page
   // change re-fetches that page. Both are handled in one effect to avoid a
   // double fetch when resetting the page.
   const lastTriggerRef = useRef(queryTrigger);
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+
   useEffect(() => {
     mountedRef.current = true;
 
@@ -272,12 +274,12 @@ export const OrderTable = ({
       }
     }
 
-    fetchOrders(filters, page);
+    fetchOrders(filtersRef.current, page);
     return () => {
       mountedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryTrigger, page]);
+  }, [queryTrigger, page, fetchOrders]);
 
   // Probe once on mount which optional columns exist in the DB.
   // Use a single query selecting all optional columns; columns that don't exist

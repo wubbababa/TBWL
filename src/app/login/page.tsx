@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, FormEvent } from 'react';
+import { useState, useCallback, FormEvent, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 /** Map Supabase auth errors to friendly Chinese messages */
@@ -18,9 +18,11 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
+  const submittingRef = useRef(false);
 
   // Validation
   const emailError = touched.email && !email.trim()
@@ -39,8 +41,9 @@ export default function LoginPage() {
   const handleSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
-    if (!canSubmit) return;
+    if (!canSubmit || submittingRef.current) return;
 
+    submittingRef.current = true;
     setError('');
     setLoading(true);
 
@@ -60,6 +63,7 @@ export default function LoginPage() {
       setError('登录失败，请稍后重试');
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   }, [canSubmit, email, password, router]);
 
@@ -102,7 +106,7 @@ export default function LoginPage() {
                 placeholder="请输入邮箱"
                 className={inputClass(!!emailError)}
               />
-              {emailError && <p className="mt-1 text-xs text-red-500">{emailError}</p>}
+              {emailError && <p className="mt-1 text-xs text-red-500" role="alert">{emailError}</p>}
             </div>
 
             {/* Password */}
@@ -110,18 +114,29 @@ export default function LoginPage() {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
                 密码
               </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onBlur={() => setTouched(p => ({ ...p, password: true }))}
-                placeholder="请输入密码"
-                className={inputClass(!!passwordError)}
-              />
-              {passwordError && <p className="mt-1 text-xs text-red-500">{passwordError}</p>}
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onBlur={() => setTouched(p => ({ ...p, password: true }))}
+                  placeholder="请输入密码"
+                  className={inputClass(!!passwordError)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {passwordError && <p className="mt-1 text-xs text-red-500" role="alert">{passwordError}</p>}
             </div>
 
             {/* Error message */}

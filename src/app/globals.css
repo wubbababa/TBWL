@@ -37,6 +37,21 @@ body {
   scrollbar-width: none;
 }
 
+/* 键盘焦点可见性 - 增强可访问性 */
+:focus-visible {
+  outline: 2px solid #228b22;
+  outline-offset: 2px;
+}
+
+/* 减少动画 - 尊重用户偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Toast 滑入动画 */
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }

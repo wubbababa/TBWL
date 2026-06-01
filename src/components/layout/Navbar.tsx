@@ -145,11 +145,12 @@ const NotificationBell = () => {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [hasFetched, setHasFetched] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Fetch recent operation logs as notifications
+  // Fetch recent operation logs as notifications (only on first open)
   useEffect(() => {
-    if (!open) return;
+    if (!open || hasFetched) return;
     (async () => {
       const { data } = await supabase
         .from('operation_logs')
@@ -164,24 +165,41 @@ const NotificationBell = () => {
           time: timeAgo(row.created_at),
           read: readIds.has(String(row.id)),
         })));
+        setHasFetched(true);
       }
     })();
-  }, [open, readIds]);
+  }, [open, hasFetched, readIds]);
 
   const unread = notifications.filter(n => !n.read).length;
 
+  // Close on outside click
   useEffect(() => {
+    if (!open) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [open]);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open]);
 
   const markAllRead = () => {
     const allIds = new Set(notifications.map(n => n.id));
     setReadIds(prev => new Set([...prev, ...allIds]));
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const refreshNotifications = () => {
+    setHasFetched(false);
   };
 
   return (
@@ -233,8 +251,8 @@ const NotificationBell = () => {
             ))}
           </div>
           <div className="px-4 py-2.5 border-t border-gray-100 text-center">
-            <button className="text-xs text-[#3c8dbc] hover:underline">
-              查看全部通知
+            <button onClick={refreshNotifications} className="text-xs text-[#3c8dbc] hover:underline">
+              刷新通知
             </button>
           </div>
         </div>

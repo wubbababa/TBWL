@@ -14,16 +14,14 @@ export const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Auto-open the menu group that contains the active path
+  // Auto-open the menu group that contains the active path (only when needed)
   useEffect(() => {
-    MENU_ITEMS.forEach(item => {
-      const isSubPathActive = item.submenu?.some(
-        sub => pathname === sub.path || pathname.startsWith(sub.path + '/')
-      );
-      if (isSubPathActive) {
-        setOpenMenus(prev => prev[item.label] ? prev : { ...prev, [item.label]: true });
-      }
-    });
+    const toOpen = MENU_ITEMS.find(item =>
+      item.submenu?.some(sub => pathname === sub.path || pathname.startsWith(sub.path + '/'))
+    );
+    if (toOpen) {
+      setOpenMenus(prev => prev[toOpen.label] ? prev : { ...prev, [toOpen.label]: true });
+    }
   }, [pathname]);
 
   const toggleMenu = useCallback((label: string) => {

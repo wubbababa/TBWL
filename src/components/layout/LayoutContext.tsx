@@ -67,15 +67,17 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const closeTab = useCallback((path: string) => {
+    if (path === HOME_TAB.path) return;
     setTabs(prev => {
-      // Home tab cannot be closed
-      if (path === HOME_TAB.path) return prev;
       const idx = prev.findIndex(t => t.path === path);
       const next = prev.filter(t => t.path !== path);
       // If closing the active tab, navigate to the previous one
       if (path === pathname) {
         const target = next[Math.max(0, idx - 1)];
-        if (target) router.push(target.path);
+        if (target) {
+          // Use queueMicrotask to avoid calling router.push inside setState
+          queueMicrotask(() => router.push(target.path));
+        }
       }
       return next;
     });
