@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
 import { 
   Plus, 
@@ -15,7 +15,8 @@ import {
   ChevronDown,
   AlertCircle
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useTableQuery } from '@/lib/useTableQuery';
+import { DataTable, Column } from '@/components/ui/DataTable';
 import { CreateInventoryProductModal } from '@/components/inventory/CreateInventoryProductModal';
 
 interface InventoryProduct {
@@ -33,9 +34,6 @@ interface InventoryProduct {
 }
 
 export default function InventoryProductsPage() {
-  const [products, setProducts] = useState<InventoryProduct[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState({
     id: '',
@@ -45,51 +43,50 @@ export default function InventoryProductsPage() {
     store: ''
   });
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      let query = supabase.from('inventory_products').select('*');
+  const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
+    let q = query;
+    if (searchQuery.sku) q = q.ilike('sku', `%${searchQuery.sku}%`);
+    if (searchQuery.name) q = q.ilike('name', `%${searchQuery.name}%`);
+    if (searchQuery.store) q = q.eq('store_name', searchQuery.store);
+    return q;
+  }, [searchQuery.sku, searchQuery.name, searchQuery.store]);
 
-      if (searchQuery.sku) {
-        query = query.ilike('sku', `%${searchQuery.sku}%`);
-      }
-      if (searchQuery.name) {
-        query = query.ilike('name', `%${searchQuery.name}%`);
-      }
-      if (searchQuery.store) {
-        query = query.eq('store_name', searchQuery.store);
-      }
-
-      const { data, error: fetchError } = await query.order('created_at', { ascending: false });
-
-      if (fetchError) throw fetchError;
-      setProducts(data || []);
-    } catch (err: unknown) {
-      console.error('Fetch inventory error:', err);
-      setError(err instanceof Error ? err.message : '获取库存数据失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* eslint-disable react-hooks/exhaustive-deps */
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-  /* eslint-enable react-hooks/exhaustive-deps */
+  const { data: products, loading, error, total, page, totalPages, setPage, refresh } = useTableQuery<InventoryProduct>({
+    table: 'inventory_products',
+    filterFn,
+  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchProducts();
+    refresh();
   };
+
+  const columns: Column<InventoryProduct>[] = [
+    { key: 'id', title: '商品ID', render: p => <span className="text-blue-600 font-mono text-xs">{p.id.slice(0, 8)}</span> },
+    { key: 'store_name', title: '仓点' },
+    { key: 'sku', title: '商品编号/SKU', render: p => <span className="font-medium">{p.sku}</span> },
+    { key: 'name', title: '商品名' },
+    { key: 'thumbnail', title: '缩略图', render: p => p.thumbnail
+      ? <Image src={p.thumbnail} alt={p.name} width={40} height={40} className="w-10 h-10 object-cover rounded border border-gray-200" />
+      : <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-[10px] text-gray-400">无图</div>
+    },
+    { key: 'price', title: '价格', className: 'text-center', render: p => <span className="text-red-600 font-bold">¥{p.price}</span> },
+    { key: 'total_count', title: '总数', className: 'text-center' },
+    { key: 'remaining_count', title: '剩余', className: 'text-center', render: p => <span className="font-bold text-blue-600">{p.remaining_count}</span> },
+    { key: 'idle_days', title: '闲置', render: p => <span>{p.idle_days}天</span> },
+    { key: 'created_at', title: '创建时间', render: p => <span className="text-gray-500 text-xs">{new Date(p.created_at).toLocaleDateString()}</span> },
+    { key: 'status', title: '状态', render: p => (
+      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.status === '在库' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-50 text-gray-500 border border-gray-100'}`}>{p.status}</span>
+    )},
+    { key: 'action', title: '操作', className: 'text-center', render: () => <button className="text-blue-600 hover:underline text-xs font-bold">管理</button> },
+  ];
 
   return (
     <div className="flex flex-col gap-4">
       {showCreateModal && (
         <CreateInventoryProductModal
           onClose={() => setShowCreateModal(false)}
-          onCreated={fetchProducts}
+          onCreated={refresh}
         />
       )}
       {/* Warning Notice */}
@@ -133,7 +130,7 @@ export default function InventoryProductsPage() {
             <h2 className="text-lg font-bold text-gray-800">库存商品</h2>
             <RefreshCw 
               className={`w-4 h-4 text-[#3c8dbc] cursor-pointer hover:rotate-180 transition-transform duration-500 ${loading ? 'animate-spin' : ''}`} 
-              onClick={fetchProducts}
+              onClick={refresh}
             />
           </div>
           {error && (
@@ -205,7 +202,7 @@ export default function InventoryProductsPage() {
               </button>
               
               <div className="flex border border-gray-300 rounded overflow-hidden">
-                <button type="button" onClick={fetchProducts} className="p-2 bg-white hover:bg-gray-50 border-r border-gray-200">
+                <button type="button" onClick={refresh} className="p-2 bg-white hover:bg-gray-50 border-r border-gray-200">
                   <RefreshCw className="w-4 h-4 text-gray-600" />
                 </button>
                 <button type="button" className="p-2 bg-white hover:bg-gray-50 border-r border-gray-200">
@@ -223,75 +220,8 @@ export default function InventoryProductsPage() {
         </form>
 
         {/* Table Section */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-[#f9fafb] border-y border-gray-200 text-gray-700 font-bold">
-              <tr>
-                <th className="px-4 py-3 min-w-[40px]">
-                  <input type="checkbox" className="rounded border-gray-300" />
-                </th>
-                <th className="px-4 py-3 whitespace-nowrap">商品ID</th>
-                <th className="px-4 py-3 whitespace-nowrap">仓点</th>
-                <th className="px-4 py-3 whitespace-nowrap">商品编号/货号/SKU</th>
-                <th className="px-4 py-3 whitespace-nowrap">商品名</th>
-                <th className="px-4 py-3 whitespace-nowrap">缩略图</th>
-                <th className="px-4 py-3 whitespace-nowrap text-center">价格</th>
-                <th className="px-4 py-3 whitespace-nowrap text-center">总数</th>
-                <th className="px-4 py-3 whitespace-nowrap text-center">剩余数量</th>
-                <th className="px-4 py-3 whitespace-nowrap">包裹闲置时长</th>
-                <th className="px-4 py-3 whitespace-nowrap">创建时间</th>
-                <th className="px-4 py-3 whitespace-nowrap">状态</th>
-                <th className="px-4 py-3 whitespace-nowrap text-center">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={13} className="px-4 py-20 text-center">
-                    <RefreshCw className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-2" />
-                    <span className="text-gray-400">正在加载库存数据...</span>
-                  </td>
-                </tr>
-              ) : products.length > 0 ? (
-                products.map((p) => (
-                  <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
-                    <td className="px-4 py-3 text-blue-600 font-mono text-xs">{p.id.slice(0, 8)}</td>
-                    <td className="px-4 py-3">{p.store_name}</td>
-                    <td className="px-4 py-3 font-medium">{p.sku}</td>
-                    <td className="px-4 py-3">{p.name}</td>
-                    <td className="px-4 py-3">
-                      {p.thumbnail ? (
-                        <Image src={p.thumbnail} alt={p.name} width={40} height={40} className="w-10 h-10 object-cover rounded border border-gray-200" />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-[10px] text-gray-400">无图</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center text-red-600 font-bold">¥{p.price}</td>
-                    <td className="px-4 py-3 text-center">{p.total_count}</td>
-                    <td className="px-4 py-3 text-center font-bold text-blue-600">{p.remaining_count}</td>
-                    <td className="px-4 py-3">{p.idle_days}天</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{new Date(p.created_at).toLocaleDateString()}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.status === '在库' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-50 text-gray-500 border border-gray-100'}`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button className="text-blue-600 hover:underline text-xs font-bold">管理</button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={13} className="px-4 py-20 text-center text-gray-500 bg-white">
-                    没有找到匹配的记录
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} data={products} loading={loading} error={error} emptyText="没有找到匹配的记录"
+          pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
     </div>
   );
