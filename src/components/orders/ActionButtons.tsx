@@ -14,15 +14,6 @@ import { AddOrderModal } from './AddOrderModal';
 import { downloadWaybillsBatch, type OrderWaybillFields } from '@/lib/waybill';
 import { useToast } from '@/components/ui/Toast';
 
-// lucide-react v1 may not export CloudSync — use a fallback
-let CloudSync: React.ComponentType<{ className?: string }>;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  CloudSync = require('lucide-react').CloudSync ?? RefreshCw;
-} catch {
-  CloudSync = RefreshCw;
-}
-
 interface Props {
   /** IDs of currently selected orders. */
   selectedIds: string[];
@@ -35,6 +26,7 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
   const [importOpen, setImportOpen] = useState(false);
   const [waybillOpen, setWaybillOpen] = useState(false);
   const [addOrderOpen, setAddOrderOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   /** 上传面单时是否限制在勾选的订单范围内。 */
   const [waybillRestricted, setWaybillRestricted] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -126,11 +118,11 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
   /* ---- Batch delete ---- */
   const handleBatchDelete = async () => {
     if (!requireSelection()) return;
-    const confirmed = window.confirm(
-      `确定要删除选中的 ${selectedIds.length} 条订单吗？此操作不可撤销。`,
-    );
-    if (!confirmed) return;
+    setConfirmDeleteOpen(true);
+  };
 
+  const executeBatchDelete = async () => {
+    setConfirmDeleteOpen(false);
     setBatchLoading('delete');
     try {
       const { data: deleted, error } = await supabase
@@ -147,6 +139,7 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
         );
       }
 
+      toast(`已删除 ${deleted.length} 条订单`, 'success');
       onActionComplete();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '未知错误';
@@ -193,7 +186,7 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
           <span>手工添加订单</span>
         </button>
         <button className="bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1.5 font-bold shadow-sm transition-all active:scale-95">
-          <CloudSync className="w-4 h-4 text-black" />
+          <RefreshCw className="w-4 h-4 text-black" />
           <span>同步缺失订单</span>
         </button>
         <button
@@ -373,6 +366,37 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
           onActionComplete();
         }}
       />
+    )}
+
+    {confirmDeleteOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
+        <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm mx-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-red-100 p-2 rounded-full">
+              <Trash2 className="w-5 h-5 text-red-600" />
+            </div>
+            <h3 className="text-base font-bold text-gray-800">确认批量删除</h3>
+          </div>
+          <p className="text-sm text-gray-600 mb-1">
+            确定要删除选中的 <span className="font-bold text-gray-800">{selectedIds.length}</span> 条订单吗？
+          </p>
+          <p className="text-xs text-red-500 mb-5">此操作不可撤销。</p>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => setConfirmDeleteOpen(false)}
+              className="px-4 py-1.5 rounded border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              取消
+            </button>
+            <button
+              onClick={executeBatchDelete}
+              className="px-4 py-1.5 rounded bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition-colors"
+            >
+              确认删除
+            </button>
+          </div>
+        </div>
+      </div>
     )}
     </>
   );

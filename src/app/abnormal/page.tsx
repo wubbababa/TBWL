@@ -85,8 +85,10 @@ export default function AbnormalParcelsPage() {
         <div className="p-4">
           <div className="flex flex-wrap gap-3 items-start">
             <input type="text" placeholder="快递单号" value={trackingFilter} onChange={e => setTrackingFilter(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && refresh()}
               className="w-full sm:w-64 h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
             <input type="text" placeholder="订单编号" value={orderFilter} onChange={e => setOrderFilter(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && refresh()}
               className="w-full sm:w-64 h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
             <input type="text" placeholder="时间" className="w-full sm:w-64 h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
             <div className="flex gap-2">

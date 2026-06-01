@@ -86,6 +86,7 @@ export default function OrderProfitPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3 items-end">
             <div className="lg:col-span-2">
               <input type="text" placeholder="订单编号" value={searchOrder} onChange={e => setSearchOrder(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && refresh()}
                 className="w-full h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
             </div>
             <div className="relative">

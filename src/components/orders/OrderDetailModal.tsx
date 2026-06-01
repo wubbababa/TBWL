@@ -99,6 +99,13 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
     return () => clearTimeout(t);
   }, [toast]);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -282,6 +289,9 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={(e) => { if (e.target === e.currentTarget && !editMode) onClose(); }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="order-detail-title"
     >
       {/* Toast */}
       {toast && (
@@ -336,7 +346,7 @@ export const OrderDetailModal = ({ order, onClose, onUpdated, onDeleted }: Props
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
-          <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+          <h2 id="order-detail-title" className="text-base font-bold text-gray-800 flex items-center gap-2">
             {editMode
               ? <><Edit2 className="w-4 h-4 text-[#3c8dbc]" /><span>编辑订单</span></>
               : <span>订单详情</span>}

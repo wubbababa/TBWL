@@ -9,6 +9,7 @@ import { createServerClient } from '@supabase/ssr';
  * 1. 公开路径（/login, /api/...）直接放行，不做认证
  * 2. 快速检查：先看 cookie 是否存在，不存在直接重定向（避免创建 Supabase 客户端）
  * 3. 完整校验：调用 getUser() 验证 JWT 签名与有效期
+ * 4. 安全头：添加基本安全响应头
  */
 
 /** 无需认证的路径前缀 */
@@ -23,12 +24,24 @@ function hasAuthCookie(request: NextRequest): boolean {
   return request.cookies.getAll().some(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
 }
 
+/** 添加安全响应头 */
+function addSecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 公开路径直接放行
   if (isPublicPath(pathname)) {
-    return NextResponse.next();
+    // 已登录用户访问 /login 时重定向到首页
+    if (pathname === '/login' && hasAuthCookie(request)) {
+      return addSecurityHeaders(NextResponse.redirect(new URL('/home', request.url)));
+    }
+    return addSecurityHeaders(NextResponse.next());
   }
 
   // 快速路径：无 auth cookie 直接重定向，避免创建 Supabase 客户端
@@ -69,7 +82,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  return response;
+  return addSecurityHeaders(response);
 }
 
 export const config = {

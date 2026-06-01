@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Upload, AlertTriangle, CheckCircle, Loader2, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { parseCsv, IMPORT_COLUMNS } from '@/lib/csv';
@@ -41,8 +41,25 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
   const [rows, setRows] = useState<PreviewRow[]>([]);
   const [fileName, setFileName] = useState('');
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [importProgress, setImportProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Lock body scroll
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // Close on Escape (only in select/done phase)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && phase !== 'importing') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose, phase]);
 
   /* ---- file handling ---- */
 
@@ -109,13 +126,15 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
 
   const startImport = useCallback(async () => {
     setPhase('importing');
+    setImportProgress(0);
 
     const labelToKey = new Map(IMPORT_COLUMNS.map((c) => [c.label, c.key]));
 
     const successes: ImportResult = { success: 0, errors: [] };
 
     // Process rows sequentially so each error can be captured by row
-    for (const row of rows) {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
       // Map Chinese headers → DB column keys
       const record: Record<string, string> = {};
       for (const [label, value] of Object.entries(row.data)) {
@@ -130,6 +149,8 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
       } else {
         successes.success++;
       }
+
+      setImportProgress(i + 1);
     }
 
     setResult(successes);
@@ -141,11 +162,11 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
   const previewHeaders = rows.length > 0 ? Object.keys(rows[0].data) : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="csv-import-title">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         {/* header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
-          <h2 className="text-lg font-bold flex items-center gap-2">
+          <h2 id="csv-import-title" className="text-lg font-bold flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-green-600" />
             CSV 导入订单
           </h2>
@@ -256,8 +277,16 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
               <p className="text-gray-600">正在导入数据，请稍候…</p>
               <p className="text-xs text-gray-400">
-                已处理 {result?.success ?? 0} 行
+                已处理 {importProgress} / {rows.length} 行
               </p>
+              {rows.length > 0 && (
+                <div className="w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                    style={{ width: `${(importProgress / rows.length) * 100}%` }}
+                  />
+                </div>
+              )}
             </div>
           )}
 

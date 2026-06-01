@@ -65,6 +65,7 @@ export default function UnassociatedParcelsPage() {
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
             <input type="text" placeholder="物流单号" value={trackingFilter} onChange={e => setTrackingFilter(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && refresh()}
               className="w-full h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
             <input type="text" placeholder="入库批次" className="w-full h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
             <div className="relative">
