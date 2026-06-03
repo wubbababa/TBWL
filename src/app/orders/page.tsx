@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { RefreshCw, ExternalLink, Settings, AlertCircle } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { OrderTabs } from '@/components/orders/OrderTabs';
 import { FilterForm } from '@/components/orders/FilterForm';
 import { ActionToolbar } from '@/components/orders/ActionButtons';
@@ -46,7 +46,6 @@ export default function OrdersPage() {
   const [filters, setFilters] = useState<OrderFilters>(EMPTY_FILTERS);
   const [queryTrigger, setQueryTrigger] = useState(0); // bumped → OrderTable re-fetches
   const [loading] = useState(false);
-  const [error] = useState<string | null>(null);
 
   // Order detail modal
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -101,16 +100,6 @@ export default function OrdersPage() {
               onClick={handleRefresh}
             />
           </h1>
-        </div>
-        <div className="flex items-center gap-3">
-          {error && (
-            <div className="flex items-center gap-1 text-red-500 text-xs bg-red-50 px-2 py-1 rounded border border-red-100">
-              <AlertCircle className="w-3 h-3" />
-              <span>{error}</span>
-            </div>
-          )}
-          <ExternalLink className="w-4 h-4 text-gray-400 cursor-pointer" />
-          <Settings className="w-4 h-4 text-gray-400 cursor-pointer" />
         </div>
       </div>
 

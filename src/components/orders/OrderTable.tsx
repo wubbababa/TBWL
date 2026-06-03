@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  RefreshCw, Maximize2, List, AlertCircle, Trash2, Loader2,
+  RefreshCw, List, AlertCircle, Trash2, Loader2,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -429,12 +429,6 @@ export const OrderTable = ({
             <RefreshCw
               className={`w-4 h-4 text-gray-600 ${loading ? 'animate-spin' : ''}`}
             />
-          </button>
-          <button className="p-1.5 hover:bg-gray-200 rounded transition-colors">
-            <Maximize2 className="w-4 h-4 text-gray-600" />
-          </button>
-          <button className="p-1.5 hover:bg-gray-200 rounded transition-colors">
-            <List className="w-4 h-4 text-gray-600" />
           </button>
         </div>
       </div>

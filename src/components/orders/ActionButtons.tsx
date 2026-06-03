@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import {
-  Plus, FileOutput, FileUp, Download, RefreshCw,
-  Trash2, CheckCircle, Package, FileText, ChevronDown, Loader2,
+  Plus, FileOutput, FileUp,
+  Trash2, CheckCircle, Package, FileText, Loader2,
   AlertTriangle, XCircle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -314,20 +314,6 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
           </button>
         </div>
 
-        {/* View Controls on Right */}
-        <div className="ml-auto flex items-center gap-2 border border-gray-200 rounded p-1 bg-white">
-           <button className="p-1.5 hover:bg-gray-100 rounded transition-colors"><RefreshCw className="w-4 h-4 text-gray-600" /></button>
-           <button className="p-1.5 hover:bg-gray-100 rounded transition-colors"><Download className="w-4 h-4 text-gray-600 rotate-180" /></button>
-           <button className="p-1.5 hover:bg-gray-100 rounded transition-colors flex items-center gap-1 px-2 border-l border-gray-100">
-             <div className="grid grid-cols-2 gap-0.5">
-               <div className="w-1.5 h-1.5 bg-gray-400"></div>
-               <div className="w-1.5 h-1.5 bg-gray-400"></div>
-               <div className="w-1.5 h-1.5 bg-gray-400"></div>
-               <div className="w-1.5 h-1.5 bg-gray-400"></div>
-             </div>
-             <ChevronDown className="w-3 h-3 text-gray-400" />
-           </button>
-        </div>
       </div>
     </div>
 
