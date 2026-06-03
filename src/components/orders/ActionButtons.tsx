@@ -185,10 +185,6 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
           <Plus className="w-4 h-4 text-black" />
           <span>手工添加订单</span>
         </button>
-        <button className="bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded text-sm flex items-center gap-1.5 font-bold shadow-sm transition-all active:scale-95">
-          <RefreshCw className="w-4 h-4 text-black" />
-          <span>同步缺失订单</span>
-        </button>
         <button
           onClick={handleExport}
           disabled={exporting}
@@ -223,12 +219,6 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
         >
           Excel 导入订单模板下载
         </a>
-        <div className="flex items-center gap-2 ml-4">
-          <span className="text-sm font-bold text-gray-700">上次同步:</span>
-          <button className="bg-[#f4f4f4] border border-gray-300 hover:bg-gray-200 px-3 py-1 rounded text-sm font-medium shadow-sm transition-all active:scale-95">
-            手动同步订单
-          </button>
-        </div>
       </div>
 
       {/* Batch Operations (Colored) */}
@@ -270,8 +260,6 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
 
         {/* Disabled / Secondary Actions */}
         <div className="flex flex-wrap items-center gap-1">
-          <button className="bg-gray-100 text-gray-400 border border-gray-200 px-3 py-1.5 rounded text-sm cursor-not-allowed">货物描述</button>
-          <button className="bg-gray-100 text-gray-400 border border-gray-200 px-3 py-1.5 rounded text-sm cursor-not-allowed">头程标签</button>
           <button
             onClick={() => openWaybillUpload(true)}
             disabled={!hasSelection}
