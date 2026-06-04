@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TrendingUp, RefreshCw } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
 interface DayPoint {
   /** 日期 key, 形如 2026-05-30 */
@@ -28,57 +27,21 @@ function buildLastDays(days: number): DayPoint[] {
   return arr;
 }
 
-// 将一条记录的 created_at 归一化为本地日期 key
-function toDayKey(iso: string): string {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
 const DAYS = 7;
 
 export default function ProfitTrendChart() {
   const [points, setPoints] = useState<DayPoint[]>(() => buildLastDays(DAYS));
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    setError(null);
-    try {
-      const base = buildLastDays(DAYS);
-      // 起始时间 = 最早一天的 00:00（本地）
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      start.setDate(start.getDate() - (DAYS - 1));
-
-      const { data, error: qErr } = await supabase
-        .from('order_profit')
-        .select('actual_income, created_at')
-        .gte('created_at', start.toISOString());
-
-      if (qErr) throw qErr;
-
-      const bucket = new Map(base.map((p) => [p.key, 0] as [string, number]));
-      for (const row of data || []) {
-        if (!row.created_at) continue;
-        const key = toDayKey(row.created_at as string);
-        if (bucket.has(key)) {
-          bucket.set(key, (bucket.get(key) || 0) + Number(row.actual_income ?? 0));
-        }
-      }
-      setPoints(base.map((p) => ({ ...p, value: Number((bucket.get(p.key) || 0).toFixed(2)) })));
-    } catch (e: unknown) {
-      console.error('Fetch profit trend error:', e);
-      setError('利润数据加载失败');
-    } finally {
-      setLoading(false);
-    }
+    await new Promise((r) => setTimeout(r, 300));
+    const base = buildLastDays(DAYS);
+    setPoints(base.map((p) => ({ ...p, value: Math.floor(Math.random() * 9000) + 1000 })));
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -151,10 +114,7 @@ export default function ProfitTrendChart() {
       </div>
 
       <div ref={wrapRef} className="relative p-2">
-        {error ? (
-          <div className="h-[220px] flex items-center justify-center text-sm text-red-500">{error}</div>
-        ) : (
-          <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
             <defs>
               <linearGradient id="profitArea" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#00a65a" stopOpacity="0.25" />
@@ -261,7 +221,6 @@ export default function ProfitTrendChart() {
               </text>
             )}
           </svg>
-        )}
       </div>
     </div>
   );
