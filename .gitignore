@@ -44,7 +44,7 @@ next-env.d.ts
 
 # sisyphus agent work files
 .sisyphus/
-.omc/state/hud-stdin-cache.json
+.omc/
 .gitignore
 .codegraph/config.json
 .codegraph/codegraph.db-wal

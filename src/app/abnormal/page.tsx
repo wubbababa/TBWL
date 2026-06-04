@@ -22,13 +22,22 @@ export default function AbnormalParcelsPage() {
   const { toast } = useToast();
   const [trackingFilter, setTrackingFilter] = useState('');
   const [orderFilter, setOrderFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
 
   const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
     let q = query;
     if (trackingFilter) q = q.ilike('tracking_number', `%${trackingFilter}%`);
     if (orderFilter) q = q.ilike('order_number', `%${orderFilter}%`);
+    if (dateFilter) {
+      const start = new Date(`${dateFilter}T00:00:00`);
+      if (!Number.isNaN(start.getTime())) {
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        q = q.gte('created_at', start.toISOString()).lt('created_at', end.toISOString());
+      }
+    }
     return q;
-  }, [trackingFilter, orderFilter]);
+  }, [trackingFilter, orderFilter, dateFilter]);
 
   const { data: parcels, loading, error, total, page, totalPages, setPage, refresh } = useTableQuery<AbnormalParcel>({
     table: 'abnormal_parcels',
@@ -90,12 +99,14 @@ export default function AbnormalParcelsPage() {
             <input type="text" placeholder="订单编号" value={orderFilter} onChange={e => setOrderFilter(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && refresh()}
               className="w-full sm:w-64 h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
-            <input type="text" placeholder="时间" className="w-full sm:w-64 h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
+            <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && refresh()}
+              className="w-full sm:w-64 h-9 px-3 text-sm border border-gray-300 rounded focus:border-[#3c8dbc] focus:outline-none" />
             <div className="flex gap-2">
               <button onClick={refresh} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <Search className="w-4 h-4" /><span>查询</span>
               </button>
-              <button onClick={() => { setTrackingFilter(''); setOrderFilter(''); }} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
+              <button onClick={() => { setTrackingFilter(''); setOrderFilter(''); setDateFilter(''); }} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <RotateCcw className="w-4 h-4" /><span>返回列表</span>
               </button>
             </div>
