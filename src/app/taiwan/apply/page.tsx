@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, FileUp, Search, RefreshCw, ChevronDown, ChevronUp, Download, RotateCcw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { generateTemplateCsv, downloadCsv, TAIWAN_APPLY_IMPORT_COLUMNS } from '@/lib/csv';
 import { CreateTaiwanApplyModal } from '@/components/taiwan/CreateTaiwanApplyModal';
 
 interface TaiwanApply {
@@ -119,7 +120,13 @@ export default function TaiwanApplyPage() {
         <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
           <FileUp className="w-4 h-4" /><span>EXCEL导入货件</span>
         </button>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
+        <button
+          onClick={() => {
+            const csv = generateTemplateCsv(TAIWAN_APPLY_IMPORT_COLUMNS);
+            downloadCsv(csv, '台湾申请入库模板.csv');
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50"
+        >
           <Download className="w-4 h-4" /><span>模板下载</span>
         </button>
         <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f39c12]/20 text-[#dd4b39] border border-[#dd4b39]/30 text-sm rounded hover:bg-[#dd4b39]/10">

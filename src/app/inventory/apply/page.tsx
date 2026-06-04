@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, FileUp, Search, RefreshCw, ShoppingCart, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { generateTemplateCsv, downloadCsv, INVENTORY_APPLY_IMPORT_COLUMNS } from '@/lib/csv';
 import { CreateInventoryApplyModal } from '@/components/inventory/CreateInventoryApplyModal';
 
 interface InventoryApply {
@@ -110,7 +111,15 @@ export default function InventoryApplyPage() {
             <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
               <FileUp className="w-4 h-4" /><span>Excel批量导入</span>
             </button>
-            <button className="text-[#3c8dbc] text-sm hover:underline">Excel模板下载</button>
+            <button
+              onClick={() => {
+                const csv = generateTemplateCsv(INVENTORY_APPLY_IMPORT_COLUMNS);
+                downloadCsv(csv, '入库申请导入模板.csv');
+              }}
+              className="text-[#3c8dbc] text-sm hover:underline"
+            >
+              Excel模板下载
+            </button>
           </div>
         </div>
       </div>

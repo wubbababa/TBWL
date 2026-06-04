@@ -36,6 +36,25 @@ export const IMPORT_COLUMNS: CsvColumn[] = [
   { label: '货况信息', key: 'tracking_info' },
 ];
 
+/** Columns for inventory-apply import template. */
+export const INVENTORY_APPLY_IMPORT_COLUMNS: CsvColumn[] = [
+  { label: '仓单条码', key: 'barcode' },
+  { label: '仓库', key: 'warehouse' },
+  { label: '快递单号', key: 'tracking_number' },
+  { label: 'SKU/商品名', key: 'sku' },
+  { label: '库位号', key: 'location' },
+  { label: '数量', key: 'quantity' },
+  { label: '备注', key: 'remarks' },
+];
+
+/** Columns for Taiwan apply import template. */
+export const TAIWAN_APPLY_IMPORT_COLUMNS: CsvColumn[] = [
+  { label: '會員/代理/貨件編號', key: 'member_code' },
+  { label: '商品數', key: 'product_count' },
+  { label: '艙單類型', key: 'manifest_type' },
+  { label: '備註', key: 'remarks' },
+];
+
 /* ------------------------------------------------------------------ */
 /*  Escape helpers                                                     */
 /* ------------------------------------------------------------------ */
