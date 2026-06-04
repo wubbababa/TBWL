@@ -59,7 +59,7 @@ export function DataTable<T>({
   loading,
   rowKey = 'id' as keyof T,
   emptyText = '暂无数据',
-  checkbox = true,
+  checkbox = false,
   selectedIds,
   onSelectionChange,
   pagination,
