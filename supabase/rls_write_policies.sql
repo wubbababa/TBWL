@@ -129,9 +129,24 @@ DO $$ BEGIN
 END $$;
 
 -- ============================================================
+-- 4. inventory_records — 库存扣减记录
+-- ============================================================
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'inventory_records' AND policyname = 'authenticated_insert_inventory_records'
+  ) THEN
+    CREATE POLICY authenticated_insert_inventory_records
+      ON inventory_records FOR INSERT
+      TO authenticated
+      WITH CHECK (true);
+  END IF;
+END $$;
+
+-- ============================================================
 -- 验证：查看三张表的所有策略
 -- ============================================================
 SELECT tablename, policyname, cmd, roles
 FROM pg_policies
-WHERE tablename IN ('inventory_products', 'inventory_apply', 'taiwan_apply')
+WHERE tablename IN ('inventory_products', 'inventory_apply', 'taiwan_apply', 'inventory_records')
 ORDER BY tablename, cmd;

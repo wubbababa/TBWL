@@ -11,6 +11,7 @@ import { generateCsv, downloadCsv, generateTemplateCsv, EXPORT_COLUMNS, IMPORT_C
 import { CsvImportModal } from './CsvImportModal';
 import { WaybillUploadModal } from './WaybillUploadModal';
 import { AddOrderModal } from './AddOrderModal';
+import { BatchInventoryModal } from './BatchInventoryModal';
 import { downloadWaybillsBatch, type OrderWaybillFields } from '@/lib/waybill';
 import { useToast } from '@/components/ui/Toast';
 
@@ -32,6 +33,7 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
   const [exporting, setExporting] = useState(false);
   const [downloadingWaybills, setDownloadingWaybills] = useState(false);
   const [batchLoading, setBatchLoading] = useState<string | null>(null); // which action is running
+  const [inventoryOpen, setInventoryOpen] = useState(false);
 
   /* ---- Export ---- */
   const handleExport = async () => {
@@ -238,9 +240,14 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
           <span>批量删除{hasSelection ? ` (${selectedIds.length})` : ''}</span>
         </button>
 
-        <button className="bg-[#00a65a] hover:bg-[#008d4c] text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition-all active:scale-95 font-medium">
+        <button
+          onClick={() => { if (requireSelection()) setInventoryOpen(true); }}
+          disabled={!hasSelection}
+          className="bg-[#00a65a] hover:bg-[#008d4c] disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm flex items-center gap-1.5 shadow-sm transition-all active:scale-95 font-medium"
+          title={hasSelection ? `库存操作 ${selectedIds.length} 条` : '请先选择订单'}
+        >
           <CheckCircle className="w-4 h-4" />
-          <span>批量快速/库存</span>
+          <span>批量快速/库存{hasSelection ? ` (${selectedIds.length})` : ''}</span>
         </button>
 
         {/* 提交打包 */}
@@ -374,6 +381,16 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
           </div>
         </div>
       </div>
+    )}
+    {inventoryOpen && (
+      <BatchInventoryModal
+        orderIds={selectedIds}
+        onClose={() => setInventoryOpen(false)}
+        onComplete={() => {
+          setInventoryOpen(false);
+          onActionComplete();
+        }}
+      />
     )}
     </>
   );
