@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Upload, AlertTriangle, CheckCircle, Loader2, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { parseCsv, IMPORT_COLUMNS } from '@/lib/csv';
+import { parseCsv, type CsvColumn } from '@/lib/csv';
 import { useToast } from '@/components/ui/Toast';
 
 /* ------------------------------------------------------------------ */
@@ -32,9 +32,15 @@ interface Props {
   onClose: () => void;
   /** Called after a successful import so the parent can refresh data. */
   onImportComplete: () => void;
+  /** Target Supabase table name. */
+  tableName: string;
+  /** Column definitions for validation and import mapping. */
+  importColumns: CsvColumn[];
+  /** Modal title override. */
+  title?: string;
 }
 
-export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
+export const CsvImportModal = ({ onClose, onImportComplete, tableName, importColumns, title }: Props) => {
   /* state */
   const { toast } = useToast();
   const [phase, setPhase] = useState<ImportPhase>('select');
@@ -80,12 +86,12 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
 
     // Validate that the CSV has at least the order_number column
     const headers = Object.keys(parsed[0]);
-    const labelSet = new Set(IMPORT_COLUMNS.map((c) => c.label));
+    const labelSet = new Set(importColumns.map((c) => c.label));
     const recognised = headers.filter((h) => labelSet.has(h));
 
     if (recognised.length === 0) {
       toast(
-        `CSV 列名无法识别。请确保第一行是列标题，且包含：${IMPORT_COLUMNS.slice(0, 3).map((c) => c.label).join('、')} 等`,
+        `CSV 列名无法识别。请确保第一行是列标题，且包含：${importColumns.slice(0, 3).map((c) => c.label).join('、')} 等`,
         'error',
       );
       return;
@@ -93,7 +99,7 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
 
     setRows(parsed.map((data, i) => ({ index: i + 2, data })));
     setPhase('preview');
-  }, [toast]);
+  }, [toast, importColumns]);
 
   const onFileSelected = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,7 +134,7 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
     setPhase('importing');
     setImportProgress(0);
 
-    const labelToKey = new Map(IMPORT_COLUMNS.map((c) => [c.label, c.key]));
+    const labelToKey = new Map(importColumns.map((c) => [c.label, c.key]));
 
     const successes: ImportResult = { success: 0, errors: [] };
 
@@ -142,7 +148,7 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
         if (key) record[key] = value;
       }
 
-      const { error } = await supabase.from('orders').insert([record]);
+      const { error } = await supabase.from(tableName).insert([record]);
 
       if (error) {
         successes.errors.push({ row: row.index, message: error.message });
@@ -155,7 +161,7 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
 
     setResult(successes);
     setPhase('done');
-  }, [rows]);
+  }, [rows, importColumns, tableName]);
 
   /* ---- render helpers ---- */
 
@@ -168,7 +174,7 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
           <h2 id="csv-import-title" className="text-lg font-bold flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-green-600" />
-            CSV 导入订单
+            CSV 导入{title || '数据'}
           </h2>
           <button
             onClick={onClose}
@@ -299,7 +305,7 @@ export const CsvImportModal = ({ onClose, onImportComplete }: Props) => {
                     导入成功
                   </p>
                   <p className="text-gray-600">
-                    共导入 <strong>{result.success}</strong> 条订单记录
+                    共导入 <strong>{result.success}</strong> 条{title || '数据'}记录
                   </p>
                 </div>
               ) : (

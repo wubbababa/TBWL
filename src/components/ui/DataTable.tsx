@@ -25,6 +25,8 @@ interface DataTableProps<T> {
   rowKey?: keyof T | ((row: T) => string);
   emptyText?: string;
   checkbox?: boolean;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
   pagination?: PaginationProps;
   error?: string | null;
 }
@@ -58,12 +60,46 @@ export function DataTable<T>({
   rowKey = 'id' as keyof T,
   emptyText = '暂无数据',
   checkbox = true,
+  selectedIds,
+  onSelectionChange,
   pagination,
   error,
 }: DataTableProps<T>) {
   const colSpan = columns.length + (checkbox ? 1 : 0);
   const getKey = (row: T, i: number) =>
     typeof rowKey === 'function' ? rowKey(row) : String((row as Record<string, unknown>)[rowKey as string] ?? i);
+
+  const isControlled = selectedIds !== undefined && onSelectionChange !== undefined;
+
+  const getRowId = (row: T, i: number) => getKey(row, i);
+
+  const toggleRow = (row: T, i: number) => {
+    if (!isControlled || !onSelectionChange) return;
+    const id = getRowId(row, i);
+    const next = selectedIds!.includes(id)
+      ? selectedIds!.filter(x => x !== id)
+      : [...selectedIds!, id];
+    onSelectionChange(next);
+  };
+
+  const toggleAll = () => {
+    if (!isControlled || !onSelectionChange) return;
+    const pageIds = data.map((row, i) => getRowId(row, i));
+    const allSelected = pageIds.length > 0 && pageIds.every(id => selectedIds!.includes(id));
+    if (allSelected) {
+      onSelectionChange(selectedIds!.filter(id => !pageIds.includes(id)));
+    } else {
+      const newIds = [...selectedIds!];
+      for (const id of pageIds) {
+        if (!newIds.includes(id)) newIds.push(id);
+      }
+      onSelectionChange(newIds);
+    }
+  };
+
+  const pageIds = data.map((row, i) => getRowId(row, i));
+  const allSelected = isControlled && pageIds.length > 0 && pageIds.every(id => selectedIds!.includes(id));
+  const someSelected = isControlled && pageIds.some(id => selectedIds!.includes(id)) && !allSelected;
 
   // Memoize pagination info text
   const paginationInfo = useMemo(() => {
@@ -80,7 +116,14 @@ export function DataTable<T>({
           <tr>
             {checkbox && (
               <th className="px-4 py-3 text-left" scope="col">
-                <input type="checkbox" className="rounded border-gray-300" aria-label="全选" />
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  aria-label="全选"
+                  checked={allSelected}
+                  ref={el => { if (el) el.indeterminate = someSelected; }}
+                  onChange={isControlled ? toggleAll : undefined}
+                />
               </th>
             )}
             {columns.map(col => (
@@ -97,7 +140,17 @@ export function DataTable<T>({
             <tr><td colSpan={colSpan} className="px-4 py-10 text-center text-gray-400">{emptyText}</td></tr>
           ) : data.map((row, i) => (
             <tr key={getKey(row, i)} className="border-b border-gray-100 hover:bg-gray-50">
-              {checkbox && <td className="px-4 py-3 text-left"><input type="checkbox" className="rounded border-gray-300" aria-label={`选择第 ${i + 1} 行`} /></td>}
+              {checkbox && (
+                <td className="px-4 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300"
+                    aria-label={`选择第 ${i + 1} 行`}
+                    checked={isControlled ? selectedIds!.includes(getRowId(row, i)) : undefined}
+                    onChange={isControlled ? () => toggleRow(row, i) : undefined}
+                  />
+                </td>
+              )}
               {columns.map(col => (
                 <td key={col.key} className={`px-4 py-3 ${col.className || ''}`}>
                   {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '-')}

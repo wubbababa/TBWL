@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, FileUp, Search, RefreshCw, ShoppingCart, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, FileUp, Search, RefreshCw, ShoppingCart, ChevronDown, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { generateTemplateCsv, downloadCsv, INVENTORY_APPLY_IMPORT_COLUMNS } from '@/lib/csv';
 import { CreateInventoryApplyModal } from '@/components/inventory/CreateInventoryApplyModal';
+import { CsvImportModal } from '@/components/orders/CsvImportModal';
+import { useToast } from '@/components/ui/Toast';
 
 interface InventoryApply {
   id: string;
@@ -28,9 +30,14 @@ const statusStyle = (s: string) => {
 };
 
 export default function InventoryApplyPage() {
+  const { toast } = useToast();
   const [rows, setRows] = useState<InventoryApply[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [barcodeFilter, setBarcodeFilter] = useState('');
   const [skuFilter, setSkuFilter] = useState('');
@@ -52,6 +59,51 @@ export default function InventoryApplyPage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchRows(); }, []);
+
+  const toggleSelectAll = () => {
+    const allIds = rows.map(r => r.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : allIds);
+  };
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedIds.length === 0) {
+      toast('请先勾选要操作的记录', 'warning');
+      return;
+    }
+    setConfirmDeleteOpen(true);
+  };
+
+  const executeBatchDelete = async () => {
+    setConfirmDeleteOpen(false);
+    setDeleting(true);
+    try {
+      const { data: deleted, error } = await supabase
+        .from('inventory_apply')
+        .delete()
+        .in('id', selectedIds)
+        .select('id');
+      if (error) throw error;
+      if (!deleted || deleted.length === 0) {
+        throw new Error('删除被拒绝（RLS 策略限制）。');
+      }
+      toast(`已删除 ${deleted.length} 条记录`, 'success');
+      setSelectedIds([]);
+      fetchRows();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      toast('批量删除失败：' + msg, 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const allSelected = rows.length > 0 && rows.every(r => selectedIds.includes(r.id));
+  const someSelected = rows.some(r => selectedIds.includes(r.id)) && !allSelected;
 
   return (
     <div className="flex flex-col gap-4">
@@ -102,13 +154,14 @@ export default function InventoryApplyPage() {
               <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <Plus className="w-4 h-4" /><span>申请入库</span>
               </button>
-              <button className="flex items-center gap-1.5 h-9 px-4 bg-[#dd4b39] text-white text-sm rounded hover:bg-[#d73925]">
-                <Trash2 className="w-4 h-4" /><span>批量删除</span>
+              <button onClick={handleBatchDelete} disabled={deleting} className="flex items-center gap-1.5 h-9 px-4 bg-[#dd4b39] text-white text-sm rounded hover:bg-[#d73925] disabled:opacity-50">
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>批量删除{selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}</span>
               </button>
             </div>
           </div>
           <div className="mt-3 flex items-center gap-3">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
+            <button onClick={() => setImportOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
               <FileUp className="w-4 h-4" /><span>Excel批量导入</span>
             </button>
             <button
@@ -136,7 +189,7 @@ export default function InventoryApplyPage() {
           <table className="w-full text-sm text-left">
             <thead className="bg-white border-y border-gray-200 text-gray-700 font-bold">
               <tr>
-                <th className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></th>
+                <th className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" checked={allSelected} ref={el => { if (el) el.indeterminate = someSelected; }} onChange={toggleSelectAll} /></th>
                 <th className="px-4 py-3 whitespace-nowrap">仓单条码</th>
                 <th className="px-4 py-3 whitespace-nowrap">仓库</th>
                 <th className="px-4 py-3 whitespace-nowrap">快递单号</th>
@@ -158,7 +211,7 @@ export default function InventoryApplyPage() {
                 <tr><td colSpan={13} className="px-4 py-8 text-center text-gray-400"></td></tr>
               ) : rows.map(r => (
                 <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
+                  <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" checked={selectedIds.includes(r.id)} onChange={() => toggleSelectRow(r.id)} /></td>
                   <td className="px-4 py-3 font-mono text-xs text-blue-600">{r.barcode}</td>
                   <td className="px-4 py-3">{r.warehouse}</td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">{r.tracking_number || '-'}</td>
@@ -180,6 +233,37 @@ export default function InventoryApplyPage() {
           <div className="p-4 flex justify-end"><span className="text-gray-400 text-xs italic">共{rows.length}条记录</span></div>
         </div>
       </div>
+
+      {importOpen && (
+        <CsvImportModal
+          onClose={() => setImportOpen(false)}
+          onImportComplete={() => { fetchRows(); }}
+          tableName="inventory_apply"
+          importColumns={INVENTORY_APPLY_IMPORT_COLUMNS}
+          title="入库申请"
+        />
+      )}
+
+      {confirmDeleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-red-100 p-2 rounded-full">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-base font-bold text-gray-800">确认批量删除</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-1">
+              确定要删除选中的 <span className="font-bold text-gray-800">{selectedIds.length}</span> 条记录吗？
+            </p>
+            <p className="text-xs text-red-500 mb-5">此操作不可撤销。</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConfirmDeleteOpen(false)} className="px-4 py-1.5 rounded border border-gray-300 text-sm text-gray-600 hover:bg-gray-50">取消</button>
+              <button onClick={executeBatchDelete} className="px-4 py-1.5 rounded bg-red-500 hover:bg-red-600 text-white text-sm font-medium">确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

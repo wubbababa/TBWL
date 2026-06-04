@@ -47,6 +47,17 @@ export const INVENTORY_APPLY_IMPORT_COLUMNS: CsvColumn[] = [
   { label: '备注', key: 'remarks' },
 ];
 
+/** Columns for inventory-products import template. */
+export const INVENTORY_PRODUCTS_IMPORT_COLUMNS: CsvColumn[] = [
+  { label: '仓点', key: 'store_name' },
+  { label: '商品编号/SKU', key: 'sku' },
+  { label: '商品名', key: 'name' },
+  { label: '价格', key: 'price' },
+  { label: '总数', key: 'total_count' },
+  { label: '剩余数量', key: 'remaining_count' },
+  { label: '状态', key: 'status' },
+];
+
 /** Columns for Taiwan apply import template. */
 export const TAIWAN_APPLY_IMPORT_COLUMNS: CsvColumn[] = [
   { label: '會員/代理/貨件編號', key: 'member_code' },

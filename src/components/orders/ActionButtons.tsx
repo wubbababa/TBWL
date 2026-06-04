@@ -321,6 +321,9 @@ export const ActionToolbar = ({ selectedIds, onActionComplete }: Props) => {
       <CsvImportModal
         onClose={() => setImportOpen(false)}
         onImportComplete={handleImportComplete}
+        tableName="orders"
+        importColumns={IMPORT_COLUMNS}
+        title="订单"
       />
     )}
 

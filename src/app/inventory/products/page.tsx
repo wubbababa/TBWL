@@ -2,14 +2,12 @@
 
 import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
-import { 
-  Plus, 
-  Trash2, 
-  FileUp, 
-  Search, 
-  RefreshCw, 
-  Maximize, 
-  LayoutGrid, 
+import {
+  Plus,
+  Search,
+  RefreshCw,
+  Maximize,
+  LayoutGrid,
   ExternalLink,
   ShoppingCart,
   ChevronDown,
@@ -18,6 +16,8 @@ import {
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { CreateInventoryProductModal } from '@/components/inventory/CreateInventoryProductModal';
+import { InventoryActionToolbar } from '@/components/inventory/InventoryActionToolbar';
+import { INVENTORY_PRODUCTS_IMPORT_COLUMNS } from '@/lib/csv';
 
 interface InventoryProduct {
   id: string;
@@ -35,6 +35,7 @@ interface InventoryProduct {
 
 export default function InventoryProductsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState({
     id: '',
     sku: '',
@@ -108,17 +109,14 @@ export default function InventoryProductsPage() {
             <Plus className="w-4 h-4" />
             <span>创建商品</span>
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#dd4b39] text-white text-sm rounded hover:bg-[#d73925] transition-colors">
-            <Trash2 className="w-4 h-4" />
-            <span>批量删除</span>
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f39c12] text-white text-sm rounded hover:bg-[#e08e0b] transition-colors">
-            <FileUp className="w-4 h-4" />
-            <span>Excel批量导入</span>
-          </button>
-          <button className="text-[#3c8dbc] text-sm hover:underline ml-1">
-            Excel模板下载
-          </button>
+          <InventoryActionToolbar
+            selectedIds={selectedIds}
+            tableName="inventory_products"
+            importColumns={INVENTORY_PRODUCTS_IMPORT_COLUMNS}
+            templateFileName="库存商品导入模板.csv"
+            title="库存商品"
+            onActionComplete={() => { setSelectedIds([]); refresh(); }}
+          />
         </div>
       </div>
 
@@ -221,6 +219,7 @@ export default function InventoryProductsPage() {
 
         {/* Table Section */}
         <DataTable columns={columns} data={products} loading={loading} error={error} emptyText="没有找到匹配的记录"
+          selectedIds={selectedIds} onSelectionChange={setSelectedIds}
           pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
     </div>

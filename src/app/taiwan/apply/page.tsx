@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, FileUp, Search, RefreshCw, ChevronDown, ChevronUp, Download, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, FileUp, Search, RefreshCw, ChevronDown, ChevronUp, Download, RotateCcw, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { generateTemplateCsv, downloadCsv, TAIWAN_APPLY_IMPORT_COLUMNS } from '@/lib/csv';
 import { CreateTaiwanApplyModal } from '@/components/taiwan/CreateTaiwanApplyModal';
+import { CsvImportModal } from '@/components/orders/CsvImportModal';
+import { useToast } from '@/components/ui/Toast';
 
 interface TaiwanApply {
   id: string;
@@ -25,9 +27,14 @@ const statusStyle = (s: string) => {
 };
 
 export default function TaiwanApplyPage() {
+  const { toast } = useToast();
   const [rows, setRows] = useState<TaiwanApply[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [memberFilter, setMemberFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -43,6 +50,51 @@ export default function TaiwanApplyPage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchRows(); }, []);
+
+  const toggleSelectAll = () => {
+    const allIds = rows.map(r => r.id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : allIds);
+  };
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedIds.length === 0) {
+      toast('请先勾选要操作的记录', 'warning');
+      return;
+    }
+    setConfirmDeleteOpen(true);
+  };
+
+  const executeBatchDelete = async () => {
+    setConfirmDeleteOpen(false);
+    setDeleting(true);
+    try {
+      const { data: deleted, error } = await supabase
+        .from('taiwan_apply')
+        .delete()
+        .in('id', selectedIds)
+        .select('id');
+      if (error) throw error;
+      if (!deleted || deleted.length === 0) {
+        throw new Error('删除被拒绝（RLS 策略限制）。');
+      }
+      toast(`已删除 ${deleted.length} 条记录`, 'success');
+      setSelectedIds([]);
+      fetchRows();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      toast('批量删除失败：' + msg, 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const allSelected = rows.length > 0 && rows.every(r => selectedIds.includes(r.id));
+  const someSelected = rows.some(r => selectedIds.includes(r.id)) && !allSelected;
 
   return (
     <div className="flex flex-col gap-4">
@@ -117,7 +169,7 @@ export default function TaiwanApplyPage() {
         <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3c8dbc] text-white text-sm rounded hover:bg-[#367fa9]">
           <Plus className="w-4 h-4" /><span>申请仓儲發貨</span>
         </button>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
+        <button onClick={() => setImportOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
           <FileUp className="w-4 h-4" /><span>EXCEL导入货件</span>
         </button>
         <button
@@ -129,8 +181,9 @@ export default function TaiwanApplyPage() {
         >
           <Download className="w-4 h-4" /><span>模板下载</span>
         </button>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f39c12]/20 text-[#dd4b39] border border-[#dd4b39]/30 text-sm rounded hover:bg-[#dd4b39]/10">
-          <Trash2 className="w-4 h-4" /><span>批量删除</span>
+        <button onClick={handleBatchDelete} disabled={deleting} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f39c12]/20 text-[#dd4b39] border border-[#dd4b39]/30 text-sm rounded hover:bg-[#dd4b39]/10 disabled:opacity-50">
+          {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+          <span>批量删除{selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}</span>
         </button>
       </div>
 
@@ -139,7 +192,7 @@ export default function TaiwanApplyPage() {
           <table className="w-full text-sm text-left">
             <thead className="bg-[#f9fafb] border-y border-gray-200 text-[#4b646f] font-bold">
               <tr>
-                <th className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></th>
+                <th className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" checked={allSelected} ref={el => { if (el) el.indeterminate = someSelected; }} onChange={toggleSelectAll} /></th>
                 <th className="px-4 py-3 whitespace-nowrap">會員/代理/貨件編號</th>
                 <th className="px-4 py-3 whitespace-nowrap">商品數</th>
                 <th className="px-4 py-3 whitespace-nowrap">艙單類型</th>
@@ -156,7 +209,7 @@ export default function TaiwanApplyPage() {
                 <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">暂无发货申请记录</td></tr>
               ) : rows.map(r => (
                 <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
+                  <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" checked={selectedIds.includes(r.id)} onChange={() => toggleSelectRow(r.id)} /></td>
                   <td className="px-4 py-3 text-gray-700 text-xs">{r.member_code}</td>
                   <td className="px-4 py-3 text-center font-bold">{r.product_count}</td>
                   <td className="px-4 py-3">
@@ -175,6 +228,37 @@ export default function TaiwanApplyPage() {
           <div className="p-4 flex items-center gap-2 text-gray-500 text-sm">共 {rows.length} 條記錄</div>
         </div>
       </div>
+
+      {importOpen && (
+        <CsvImportModal
+          onClose={() => setImportOpen(false)}
+          onImportComplete={() => { fetchRows(); }}
+          tableName="taiwan_apply"
+          importColumns={TAIWAN_APPLY_IMPORT_COLUMNS}
+          title="台湾入库申请"
+        />
+      )}
+
+      {confirmDeleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-red-100 p-2 rounded-full">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-base font-bold text-gray-800">确认批量删除</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-1">
+              确定要删除选中的 <span className="font-bold text-gray-800">{selectedIds.length}</span> 条记录吗？
+            </p>
+            <p className="text-xs text-red-500 mb-5">此操作不可撤销。</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConfirmDeleteOpen(false)} className="px-4 py-1.5 rounded border border-gray-300 text-sm text-gray-600 hover:bg-gray-50">取消</button>
+              <button onClick={executeBatchDelete} className="px-4 py-1.5 rounded bg-red-500 hover:bg-red-600 text-white text-sm font-medium">确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
