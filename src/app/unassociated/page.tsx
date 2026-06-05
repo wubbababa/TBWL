@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Package, Search, RefreshCw, ChevronDown } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import { LinkParcelModal } from '@/components/parcels/LinkParcelModal';
 
 interface UnassociatedParcel {
   id: string;
@@ -17,11 +18,16 @@ interface UnassociatedParcel {
 export default function UnassociatedParcelsPage() {
   const [trackingFilter, setTrackingFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [selectedParcel, setSelectedParcel] = useState<UnassociatedParcel | null>(null);
 
   const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
     let q = query;
     if (trackingFilter) q = q.ilike('tracking_number', `%${trackingFilter}%`);
-    if (statusFilter) q = q.eq('status', statusFilter);
+    if (statusFilter) {
+      q = q.eq('status', statusFilter);
+    } else {
+      q = q.neq('status', '已关联');
+    }
     return q;
   }, [trackingFilter, statusFilter]);
 
@@ -41,7 +47,7 @@ export default function UnassociatedParcelsPage() {
         {p.status}
       </span>
     )},
-    { key: 'action', title: '操作', className: 'text-center', render: () => <button className="text-blue-600 hover:underline text-xs font-bold">关联</button> },
+    { key: 'action', title: '操作', className: 'text-center', render: (p) => <button onClick={() => setSelectedParcel(p)} className="text-blue-600 hover:underline text-xs font-bold">关联</button> },
   ];
 
   return (
@@ -90,6 +96,14 @@ export default function UnassociatedParcelsPage() {
         <DataTable columns={columns} data={parcels} loading={loading} error={error} emptyText="没有找到未关联的包裹记录"
           pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
+
+      {selectedParcel && (
+        <LinkParcelModal
+          parcel={selectedParcel}
+          onClose={() => setSelectedParcel(null)}
+          onLinked={() => { setSelectedParcel(null); refresh(); }}
+        />
+      )}
     </div>
   );
 }
