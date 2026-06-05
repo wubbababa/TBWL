@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Plus, Trash2, FileUp, Search, RefreshCw, ShoppingCart, ChevronDown } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import { EditInventoryProductModal } from '@/components/inventory/EditInventoryProductModal';
 
 interface InventoryProduct {
   id: string;
@@ -22,6 +23,7 @@ interface InventoryProduct {
 
 export default function TaiwanProductsPage() {
   const [searchQuery, setSearchQuery] = useState({ sku: '', name: '', store: '台北仓' });
+  const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null);
 
   const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
     let q = query;
@@ -53,11 +55,18 @@ export default function TaiwanProductsPage() {
     { key: 'status', title: '状态', render: p => (
       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.status === '在库' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-50 text-gray-500 border border-gray-100'}`}>{p.status}</span>
     )},
-    { key: 'action', title: '操作', className: 'text-center', render: () => <button className="text-blue-600 hover:underline text-xs font-bold">管理</button> },
+    { key: 'action', title: '操作', className: 'text-center', render: (p) => <button onClick={() => setEditingProduct(p)} className="text-blue-600 hover:underline text-xs font-bold">管理</button> },
   ];
 
   return (
     <div className="flex flex-col gap-4">
+      {editingProduct && (
+        <EditInventoryProductModal
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onUpdated={() => { setEditingProduct(null); refresh(); }}
+        />
+      )}
       <div className="text-red-600 text-[13px] space-y-1 font-medium px-1">
         <p>如積分不足導致欠费,產品將在7天後销毁库存</p>
         <p>請盡快處理如需退回請 (聯系客服)</p>

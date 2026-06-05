@@ -16,6 +16,7 @@ import {
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { CreateInventoryProductModal } from '@/components/inventory/CreateInventoryProductModal';
+import { EditInventoryProductModal } from '@/components/inventory/EditInventoryProductModal';
 import { InventoryActionToolbar } from '@/components/inventory/InventoryActionToolbar';
 import { INVENTORY_PRODUCTS_IMPORT_COLUMNS } from '@/lib/csv';
 
@@ -35,6 +36,7 @@ interface InventoryProduct {
 
 export default function InventoryProductsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState({
     id: '',
@@ -79,7 +81,7 @@ export default function InventoryProductsPage() {
     { key: 'status', title: '状态', render: p => (
       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.status === '在库' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-50 text-gray-500 border border-gray-100'}`}>{p.status}</span>
     )},
-    { key: 'action', title: '操作', className: 'text-center', render: () => <button className="text-blue-600 hover:underline text-xs font-bold">管理</button> },
+    { key: 'action', title: '操作', className: 'text-center', render: (p) => <button className="text-blue-600 hover:underline text-xs font-bold" onClick={() => setEditingProduct(p)}>管理</button> },
   ];
 
   return (
@@ -88,6 +90,13 @@ export default function InventoryProductsPage() {
         <CreateInventoryProductModal
           onClose={() => setShowCreateModal(false)}
           onCreated={refresh}
+        />
+      )}
+      {editingProduct && (
+        <EditInventoryProductModal
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onUpdated={() => { setEditingProduct(null); refresh(); }}
         />
       )}
       {/* Warning Notice */}
