@@ -2,10 +2,12 @@
 
 import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Plus, Trash2, FileUp, Search, RefreshCw, ShoppingCart, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, FileUp, FileText, Search, RefreshCw, ShoppingCart, ChevronDown } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { EditInventoryProductModal } from '@/components/inventory/EditInventoryProductModal';
+import { CsvImportModal } from '@/components/orders/CsvImportModal';
+import { generateTemplateCsv, downloadCsv, INVENTORY_PRODUCTS_IMPORT_COLUMNS } from '@/lib/csv';
 
 interface InventoryProduct {
   id: string;
@@ -24,6 +26,7 @@ interface InventoryProduct {
 export default function TaiwanProductsPage() {
   const [searchQuery, setSearchQuery] = useState({ sku: '', name: '', store: '台北仓' });
   const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
     let q = query;
@@ -84,10 +87,10 @@ export default function TaiwanProductsPage() {
           <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#dd4b39] text-white text-sm rounded hover:bg-[#d73925]">
             <Trash2 className="w-4 h-4" /><span>批量删除</span>
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f39c12] text-white text-sm rounded hover:bg-[#e08e0b]">
+          <button onClick={() => setImportOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f39c12] text-white text-sm rounded hover:bg-[#e08e0b]">
             <FileUp className="w-4 h-4" /><span>Excel批量导入</span>
           </button>
-          <button className="text-[#3c8dbc] text-sm hover:underline ml-1">Excel模板下载</button>
+          <button onClick={() => { const csv = generateTemplateCsv(INVENTORY_PRODUCTS_IMPORT_COLUMNS); downloadCsv(csv, '臺灣倉庫商品导入模板.csv'); }} className="text-[#3c8dbc] text-sm hover:underline ml-1">Excel模板下载</button>
         </div>
       </div>
 
@@ -123,6 +126,16 @@ export default function TaiwanProductsPage() {
         <DataTable columns={columns} data={products} loading={loading} error={error} emptyText="没有找到匹配的记录"
           pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
+
+      {importOpen && (
+        <CsvImportModal
+          onClose={() => setImportOpen(false)}
+          onImportComplete={() => { setImportOpen(false); refresh(); }}
+          tableName="inventory_products"
+          importColumns={INVENTORY_PRODUCTS_IMPORT_COLUMNS}
+          title="臺灣倉庫商品"
+        />
+      )}
     </div>
   );
 }

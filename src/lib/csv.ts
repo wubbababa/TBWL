@@ -66,6 +66,29 @@ export const TAIWAN_APPLY_IMPORT_COLUMNS: CsvColumn[] = [
   { label: '備註', key: 'remarks' },
 ];
 
+/** Columns for shipping records export. */
+export const SHIPPING_EXPORT_COLUMNS: CsvColumn[] = [
+  { label: '流水號', key: 'serial_number' },
+  { label: '訂單號/快遞包裹', key: 'reference' },
+  { label: '運輸方式', key: 'shipping_method' },
+  { label: '重量(KG)', key: 'weight' },
+  { label: '描述', key: 'description' },
+  { label: '積分', key: 'points' },
+  { label: '狀態', key: 'status' },
+  { label: '發生時間', key: 'occurred_at' },
+];
+
+/** Columns for expense records export. */
+export const EXPENSE_EXPORT_COLUMNS: CsvColumn[] = [
+  { label: '流水號', key: 'serial_number' },
+  { label: '消費類型', key: 'expense_type' },
+  { label: '訂單編號/快遞單號/店鋪名', key: 'reference' },
+  { label: '描述', key: 'description' },
+  { label: '積分', key: 'points' },
+  { label: '狀態', key: 'status' },
+  { label: '發生時間', key: 'occurred_at' },
+];
+
 /* ------------------------------------------------------------------ */
 /*  Escape helpers                                                     */
 /* ------------------------------------------------------------------ */

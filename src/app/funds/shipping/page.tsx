@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Search, RefreshCw, CreditCard, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import { Search, RefreshCw, CreditCard, FileSpreadsheet, ChevronDown, Loader2 } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import { supabase } from '@/lib/supabase';
+import { generateCsv, downloadCsv, SHIPPING_EXPORT_COLUMNS } from '@/lib/csv';
 
 interface ShippingRecord {
   id: string;
@@ -33,6 +35,27 @@ export default function ShippingDetailsPage() {
     orderBy: 'occurred_at',
     filterFn,
   });
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('shipping_records')
+        .select('*')
+        .order('occurred_at', { ascending: false });
+      if (error) throw error;
+      const csv = generateCsv(data ?? [], SHIPPING_EXPORT_COLUMNS);
+      const ts = new Date().toISOString().slice(0, 10);
+      downloadCsv(csv, `運輸費記錄_${ts}.csv`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      alert('导出失败：' + msg);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const columns: Column<ShippingRecord>[] = [
     { key: 'serial_number', title: '流水號', className: 'text-center', render: r => <span className="font-mono text-xs text-gray-600">{r.serial_number}</span> },
@@ -76,8 +99,8 @@ export default function ShippingDetailsPage() {
               <button onClick={refresh} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <Search className="w-4 h-4" /><span>查询</span>
               </button>
-              <button className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
-                <FileSpreadsheet className="w-4 h-4 text-green-700" /><span>导出Excel</span>
+              <button onClick={handleExport} disabled={exporting} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50 disabled:opacity-50">
+                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 text-green-700" />}<span>{exporting ? '正在导出…' : '导出Excel'}</span>
               </button>
             </div>
           </div>
