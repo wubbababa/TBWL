@@ -2,12 +2,13 @@
 
 import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Plus, Trash2, FileUp, FileText, Search, RefreshCw, ShoppingCart, ChevronDown } from 'lucide-react';
+import { Plus, Search, RefreshCw, ShoppingCart, ChevronDown } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { EditInventoryProductModal } from '@/components/inventory/EditInventoryProductModal';
-import { CsvImportModal } from '@/components/orders/CsvImportModal';
-import { generateTemplateCsv, downloadCsv, INVENTORY_PRODUCTS_IMPORT_COLUMNS } from '@/lib/csv';
+import { CreateInventoryProductModal } from '@/components/inventory/CreateInventoryProductModal';
+import { InventoryActionToolbar } from '@/components/inventory/InventoryActionToolbar';
+import { INVENTORY_PRODUCTS_IMPORT_COLUMNS } from '@/lib/csv';
 
 interface InventoryProduct {
   id: string;
@@ -26,7 +27,8 @@ interface InventoryProduct {
 export default function TaiwanProductsPage() {
   const [searchQuery, setSearchQuery] = useState({ sku: '', name: '', store: '台北仓' });
   const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
     let q = query;
@@ -63,6 +65,12 @@ export default function TaiwanProductsPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {showCreateModal && (
+        <CreateInventoryProductModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => { setShowCreateModal(false); refresh(); }}
+        />
+      )}
       {editingProduct && (
         <EditInventoryProductModal
           product={editingProduct}
@@ -81,16 +89,17 @@ export default function TaiwanProductsPage() {
           <h1 className="text-lg font-bold text-gray-800">臺灣倉庫商品管理</h1>
         </div>
         <div className="p-4 flex flex-wrap gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
+          <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50">
             <Plus className="w-4 h-4" /><span>创建臺灣庫存商品</span>
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#dd4b39] text-white text-sm rounded hover:bg-[#d73925]">
-            <Trash2 className="w-4 h-4" /><span>批量删除</span>
-          </button>
-          <button onClick={() => setImportOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f39c12] text-white text-sm rounded hover:bg-[#e08e0b]">
-            <FileUp className="w-4 h-4" /><span>Excel批量导入</span>
-          </button>
-          <button onClick={() => { const csv = generateTemplateCsv(INVENTORY_PRODUCTS_IMPORT_COLUMNS); downloadCsv(csv, '臺灣倉庫商品导入模板.csv'); }} className="text-[#3c8dbc] text-sm hover:underline ml-1">Excel模板下载</button>
+          <InventoryActionToolbar
+            selectedIds={selectedIds}
+            tableName="inventory_products"
+            importColumns={INVENTORY_PRODUCTS_IMPORT_COLUMNS}
+            templateFileName="臺灣倉庫商品导入模板.csv"
+            title="臺灣倉庫商品"
+            onActionComplete={() => { setSelectedIds([]); refresh(); }}
+          />
         </div>
       </div>
 
@@ -124,18 +133,9 @@ export default function TaiwanProductsPage() {
         </form>
 
         <DataTable columns={columns} data={products} loading={loading} error={error} emptyText="没有找到匹配的记录"
+          checkbox selectedIds={selectedIds} onSelectionChange={setSelectedIds}
           pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
-
-      {importOpen && (
-        <CsvImportModal
-          onClose={() => setImportOpen(false)}
-          onImportComplete={() => { setImportOpen(false); refresh(); }}
-          tableName="inventory_products"
-          importColumns={INVENTORY_PRODUCTS_IMPORT_COLUMNS}
-          title="臺灣倉庫商品"
-        />
-      )}
     </div>
   );
 }
