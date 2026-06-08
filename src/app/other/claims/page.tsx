@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { ShieldAlert, Search, Plus, Filter, CheckCircle2, Clock, XCircle, MoreVertical, RefreshCw } from 'lucide-react';
+import { ShieldAlert, Search, Plus, Filter, CheckCircle2, Clock, XCircle, MoreVertical, RefreshCw, Eye, Trash2 } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
+import { CreateClaimModal } from '@/components/other/CreateClaimModal';
+import { DetailModal } from '@/components/ui/DetailModal';
+import { supabase } from '@/lib/supabase';
 
 interface Claim {
   id: string;
@@ -30,6 +33,9 @@ const StatusIcon = ({ s }: { s: string }) => {
 
 export default function ClaimsPage() {
   const [searchText, setSearchText] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [detailRow, setDetailRow] = useState<Claim | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
     let q = query;
@@ -44,6 +50,14 @@ export default function ClaimsPage() {
     filterFn,
   });
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('确定删除此索赔记录？')) return;
+    const { error } = await supabase.from('claims').delete().eq('id', id);
+    if (error) { console.error('删除失败:', error); return; }
+    setMenuOpenId(null);
+    refresh();
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -56,7 +70,7 @@ export default function ClaimsPage() {
             <p className="text-sm text-gray-500">跟踪与处理运输损毁、丢失等索赔申请</p>
           </div>
         </div>
-        <button className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100">
+        <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100">
           <Plus className="w-4 h-4" />发起新索赔
         </button>
       </div>
@@ -132,9 +146,23 @@ export default function ClaimsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-5 text-center">
-                    <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
+                    <div className="relative inline-block">
+                      <button onClick={() => setMenuOpenId(menuOpenId === c.id ? null : c.id)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
+                      {menuOpenId === c.id && (
+                        <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                          <button onClick={() => { setDetailRow(c); setMenuOpenId(null); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg">
+                            <Eye className="w-4 h-4" />详情
+                          </button>
+                          <button onClick={() => handleDelete(c.id)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-lg">
+                            <Trash2 className="w-4 h-4" />删除
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -145,6 +173,26 @@ export default function ClaimsPage() {
           <p className="text-xs text-gray-400">共 {total} 条索赔记录</p>
         </div>
       </div>
+
+      {showCreateModal && (
+        <CreateClaimModal onClose={() => setShowCreateModal(false)} onCreated={() => { setShowCreateModal(false); refresh(); }} />
+      )}
+
+      {detailRow && (
+        <DetailModal
+          title="索赔详情"
+          onClose={() => setDetailRow(null)}
+          fields={[
+            { label: '索赔单号', value: detailRow.id.slice(0, 8).toUpperCase() },
+            { label: '订单编号', value: detailRow.order_number },
+            { label: '物流单号', value: detailRow.tracking_number || '-' },
+            { label: '索赔原因', value: detailRow.reason },
+            { label: '索赔金额', value: detailRow.claim_amount != null ? `¥${detailRow.claim_amount.toFixed(2)}` : '-' },
+            { label: '状态', value: detailRow.status },
+            { label: '创建时间', value: new Date(detailRow.created_at).toLocaleString('zh-CN') },
+          ]}
+        />
+      )}
     </div>
   );
 }

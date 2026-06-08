@@ -1,15 +1,57 @@
 'use client';
 
-import React from 'react';
-import { 
-  FileEdit, 
-  Send, 
+import React, { useState } from 'react';
+import {
+  FileEdit,
+  Send,
   Info,
   AlertTriangle,
   Camera
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 
 export default function ReturnRegisterPage() {
+  const { toast } = useToast();
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [originalOrder, setOriginalOrder] = useState('');
+  const [reason, setReason] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const resetForm = () => {
+    setTrackingNumber('');
+    setOriginalOrder('');
+    setReason('');
+    setRemarks('');
+  };
+
+  const handleSubmit = async () => {
+    if (!trackingNumber.trim()) { toast('请输入退回物流单号', 'warning'); return; }
+    if (!reason) { toast('请选择退件原因', 'warning'); return; }
+    setSubmitting(true);
+    try {
+      const reasonLabel: Record<string, string> = {
+        reject: '客户拒收', wrong_address: '地址错误/无法投递',
+        quality: '质量问题退货', cancel: '客户中途取消', other: '其他原因',
+      };
+      const { error } = await supabase.from('returns').insert({
+        tracking_number: trackingNumber.trim(),
+        original_order: originalOrder.trim() || null,
+        reason: reasonLabel[reason] || reason,
+        status: '待处理',
+        returned_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      toast('退件登记成功', 'success');
+      resetForm();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      toast('登记失败：' + msg, 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto py-4">
       <div className="flex items-center gap-3">
@@ -33,17 +75,21 @@ export default function ReturnRegisterPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-bold text-gray-700">退回物流单号 <span className="text-red-500">*</span></label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="请输入退回时使用的快递单号"
+                value={trackingNumber}
+                onChange={e => setTrackingNumber(e.target.value)}
                 className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-gray-700">原订单编号</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="关联的原系统订单号"
+                value={originalOrder}
+                onChange={e => setOriginalOrder(e.target.value)}
                 className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
               />
             </div>
@@ -51,7 +97,8 @@ export default function ReturnRegisterPage() {
 
           <div className="space-y-2">
             <label className="text-sm font-bold text-gray-700">退件原因 <span className="text-red-500">*</span></label>
-            <select className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none bg-white">
+            <select value={reason} onChange={e => setReason(e.target.value)}
+              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all appearance-none bg-white">
               <option value="">请选择退件原因</option>
               <option value="reject">客户拒收</option>
               <option value="wrong_address">地址错误/无法投递</option>
@@ -63,9 +110,11 @@ export default function ReturnRegisterPage() {
 
           <div className="space-y-2">
             <label className="text-sm font-bold text-gray-700">详细备注</label>
-            <textarea 
+            <textarea
               rows={4}
               placeholder="请详细描述包裹情况，如外观破损等..."
+              value={remarks}
+              onChange={e => setRemarks(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none"
             ></textarea>
           </div>
@@ -82,12 +131,13 @@ export default function ReturnRegisterPage() {
           </div>
         </div>
         <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-          <button className="px-6 py-2.5 rounded-xl border border-gray-300 font-bold text-gray-600 hover:bg-white transition-all">
+          <button onClick={resetForm} className="px-6 py-2.5 rounded-xl border border-gray-300 font-bold text-gray-600 hover:bg-white transition-all">
             重置
           </button>
-          <button className="px-8 py-2.5 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 flex items-center gap-2">
+          <button onClick={handleSubmit} disabled={submitting}
+            className="px-8 py-2.5 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 flex items-center gap-2 disabled:opacity-50">
             <Send className="w-4 h-4" />
-            提交登记
+            {submitting ? '提交中...' : '提交登记'}
           </button>
         </div>
       </div>

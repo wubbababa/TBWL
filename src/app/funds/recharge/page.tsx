@@ -18,6 +18,7 @@ export default function RechargePage() {
   const [records, setRecords] = useState<RechargeRecord[]>([]);
   const [totalBalance, setTotalBalance] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
   const quickAmounts = ['100', '500', '1000', '2000', '5000', '10000'];
 
@@ -130,12 +131,12 @@ export default function RechargePage() {
               <h3 className="font-bold text-gray-800 flex items-center gap-2">
                 <History className="w-4 h-4 text-gray-400" />充值记录
               </h3>
-              <button className="text-xs text-blue-600 font-bold hover:underline">查看全部</button>
+              <button onClick={() => setShowAll(!showAll)} className="text-xs text-blue-600 font-bold hover:underline">{showAll ? '收起' : '查看全部'}</button>
             </div>
             <div className="space-y-4">
               {loading ? (
                 <p className="text-xs text-gray-400 text-center py-4">加载中...</p>
-              ) : records.slice(0, 5).map(r => (
+              ) : records.slice(0, showAll ? records.length : 5).map(r => (
                 <div key={r.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                   <div>
                     <p className="text-xs font-bold text-gray-700">+{Number(r.amount).toLocaleString('zh-CN', { minimumFractionDigits: 2 })} ({methodLabel(r.method)})</p>

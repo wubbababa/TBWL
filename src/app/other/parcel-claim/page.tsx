@@ -14,12 +14,15 @@ interface UnassociatedParcel {
 
 export default function ParcelClaimPage() {
   const [trackingFilter, setTrackingFilter] = useState('');
+  const [showMyClaims, setShowMyClaims] = useState(false);
   const [now] = useState(() => Date.now());
 
   const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
-    if (trackingFilter) return query.eq('tracking_number', trackingFilter);
-    return query;
-  }, [trackingFilter]);
+    let q = query;
+    if (trackingFilter) q = q.eq('tracking_number', trackingFilter);
+    if (showMyClaims) q = q.eq('status', '已認領');
+    return q;
+  }, [trackingFilter, showMyClaims]);
 
   const { data: parcels, loading, error, total, page, totalPages, setPage, refresh } = useTableQuery<UnassociatedParcel>({
     table: 'unassociated_parcels',
@@ -70,8 +73,9 @@ export default function ParcelClaimPage() {
                 <Search className="w-4 h-4" /><span>查询</span>
               </button>
               <button onClick={() => { setTrackingFilter(''); }} className="h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">返回列表</button>
-              <button className="flex items-center gap-1.5 h-9 px-4 bg-[#222d32] text-white text-sm rounded hover:bg-[#1a2226] shadow-sm">
-                <UserCheck className="w-4 h-4" /><span>我的认领</span>
+              <button onClick={() => setShowMyClaims(!showMyClaims)}
+                className={`flex items-center gap-1.5 h-9 px-4 text-sm rounded shadow-sm ${showMyClaims ? 'bg-[#3c8dbc] text-white hover:bg-[#367fa9]' : 'bg-[#222d32] text-white hover:bg-[#1a2226]'}`}>
+                <UserCheck className="w-4 h-4" /><span>{showMyClaims ? '查看全部' : '我的认领'}</span>
               </button>
             </div>
           </div>
