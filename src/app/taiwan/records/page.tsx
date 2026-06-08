@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, RefreshCw, ShoppingCart, ChevronLeft } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
@@ -17,6 +18,7 @@ interface InventoryRecord {
 }
 
 export default function TaiwanRecordsPage() {
+  const router = useRouter();
   const [productIdFilter, setProductIdFilter] = useState('');
   const [orderFilter, setOrderFilter] = useState('');
   const [skuFilter, setSkuFilter] = useState('');
@@ -65,7 +67,7 @@ export default function TaiwanRecordsPage() {
               <button onClick={refresh} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <Search className="w-4 h-4" /><span>查询</span>
               </button>
-              <button className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
+              <button onClick={() => router.back()} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
                 <ChevronLeft className="w-4 h-4" /><span>返回</span>
               </button>
             </div>
