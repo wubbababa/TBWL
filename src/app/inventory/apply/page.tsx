@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { generateTemplateCsv, downloadCsv, INVENTORY_APPLY_IMPORT_COLUMNS } from '@/lib/csv';
 import { CreateInventoryApplyModal } from '@/components/inventory/CreateInventoryApplyModal';
 import { CsvImportModal } from '@/components/orders/CsvImportModal';
+import { DetailModal } from '@/components/ui/DetailModal';
 import { useToast } from '@/components/ui/Toast';
 
 interface InventoryApply {
@@ -38,6 +39,7 @@ export default function InventoryApplyPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [detailRow, setDetailRow] = useState<InventoryApply | null>(null);
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [barcodeFilter, setBarcodeFilter] = useState('');
   const [skuFilter, setSkuFilter] = useState('');
@@ -225,7 +227,7 @@ export default function InventoryApplyPage() {
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusStyle(r.status)}`}>{r.status}</span>
                   </td>
-                  <td className="px-4 py-3 text-center"><button className="text-blue-600 hover:underline text-xs font-bold">详情</button></td>
+                  <td className="px-4 py-3 text-center"><button className="text-blue-600 hover:underline text-xs font-bold" onClick={() => setDetailRow(r)}>详情</button></td>
                 </tr>
               ))}
             </tbody>
@@ -263,6 +265,25 @@ export default function InventoryApplyPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {detailRow && (
+        <DetailModal
+          title="入库申请详情"
+          onClose={() => setDetailRow(null)}
+          fields={[
+            { label: '仓单条码', value: detailRow.barcode },
+            { label: '仓库', value: detailRow.warehouse },
+            { label: '快递单号', value: detailRow.tracking_number || '-' },
+            { label: 'SKU/商品名', value: detailRow.sku || '-' },
+            { label: '库位号', value: detailRow.location || '-' },
+            { label: '数量', value: detailRow.quantity },
+            { label: '下次扣费时间', value: detailRow.next_charge_at ? new Date(detailRow.next_charge_at).toLocaleDateString('zh-CN') : '-' },
+            { label: '备注', value: detailRow.remarks || '-' },
+            { label: '状态', value: detailRow.status },
+            { label: '创建时间', value: new Date(detailRow.created_at).toLocaleString('zh-CN') },
+          ]}
+        />
       )}
     </div>
   );

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { generateTemplateCsv, downloadCsv, TAIWAN_APPLY_IMPORT_COLUMNS } from '@/lib/csv';
 import { CreateTaiwanApplyModal } from '@/components/taiwan/CreateTaiwanApplyModal';
 import { CsvImportModal } from '@/components/orders/CsvImportModal';
+import { DetailModal } from '@/components/ui/DetailModal';
 import { useToast } from '@/components/ui/Toast';
 
 interface TaiwanApply {
@@ -35,6 +36,7 @@ export default function TaiwanApplyPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [detailRow, setDetailRow] = useState<TaiwanApply | null>(null);
   const [memberFilter, setMemberFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -220,7 +222,7 @@ export default function TaiwanApplyPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{r.remarks || '-'}</td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{new Date(r.created_at).toLocaleString('zh-CN')}</td>
-                  <td className="px-4 py-3 text-right pr-12"><button className="text-blue-600 hover:underline text-xs font-bold">详情</button></td>
+                  <td className="px-4 py-3 text-right pr-12"><button className="text-blue-600 hover:underline text-xs font-bold" onClick={() => setDetailRow(r)}>详情</button></td>
                 </tr>
               ))}
             </tbody>
@@ -258,6 +260,21 @@ export default function TaiwanApplyPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {detailRow && (
+        <DetailModal
+          title="台湾入库申请详情"
+          onClose={() => setDetailRow(null)}
+          fields={[
+            { label: '会员编号', value: detailRow.member_code },
+            { label: '商品数', value: detailRow.product_count },
+            { label: '舱单类型', value: detailRow.manifest_type },
+            { label: '状态', value: detailRow.status },
+            { label: '备注', value: detailRow.remarks || '-' },
+            { label: '创建时间', value: new Date(detailRow.created_at).toLocaleString('zh-CN') },
+          ]}
+        />
       )}
     </div>
   );

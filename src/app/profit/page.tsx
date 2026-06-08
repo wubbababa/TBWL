@@ -4,6 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Search, RefreshCw, ChevronDown, Calendar, Database } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import { DetailModal } from '@/components/ui/DetailModal';
 
 interface OrderProfit {
   id: string;
@@ -22,6 +23,7 @@ interface OrderProfit {
 
 export default function OrderProfitPage() {
   const [searchOrder, setSearchOrder] = useState('');
+  const [detailRow, setDetailRow] = useState<OrderProfit | null>(null);
 
   const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
     let q = query;
@@ -58,7 +60,7 @@ export default function OrderProfitPage() {
     { key: 'inventory_cost', title: '库存成本(CNY)' },
     { key: 'freight_cost', title: '货代成本(CNY)' },
     { key: 'actual_income', title: '实际收入(CNY)', render: r => <span className="font-bold text-green-600">{r.actual_income}</span> },
-    { key: 'action', title: '操作', className: 'text-center', render: () => <button className="text-blue-600 hover:underline text-xs font-bold">详情</button> },
+    { key: 'action', title: '操作', className: 'text-center', render: (r) => <button className="text-blue-600 hover:underline text-xs font-bold" onClick={() => setDetailRow(r)}>详情</button> },
   ];
 
   return (
@@ -113,6 +115,26 @@ export default function OrderProfitPage() {
         <DataTable columns={columns} data={rows} loading={loading} error={error} emptyText="没有找到匹配的记录"
           pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
+
+      {detailRow && (
+        <DetailModal
+          title="订单利润详情"
+          onClose={() => setDetailRow(null)}
+          fields={[
+            { label: '订单编号', value: detailRow.order_number },
+            { label: '销售金额', value: `¥${detailRow.sales_amount}` },
+            { label: '实付金额', value: `¥${detailRow.paid_amount}` },
+            { label: '其它费用', value: `¥${detailRow.other_fees}` },
+            { label: '物流成本', value: `¥${detailRow.logistics_cost}` },
+            { label: '订单收入', value: `¥${detailRow.order_income}` },
+            { label: '采购成本', value: `¥${detailRow.purchase_cost}` },
+            { label: '库存成本', value: `¥${detailRow.inventory_cost}` },
+            { label: '货代成本', value: `¥${detailRow.freight_cost}` },
+            { label: '实际收入', value: `¥${detailRow.actual_income}` },
+            { label: '创建时间', value: new Date(detailRow.created_at).toLocaleString('zh-CN') },
+          ]}
+        />
+      )}
     </div>
   );
 }
