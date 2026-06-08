@@ -2,9 +2,10 @@
 
 import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, Copy } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import { supabase } from '@/lib/supabase';
 
 interface Product {
   id: string;
@@ -17,6 +18,30 @@ interface Product {
 
 export default function ProductDatabasePage() {
   const [searchText, setSearchText] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [copying, setCopying] = useState(false);
+
+  const handleCopy = async () => {
+    if (selectedIds.length === 0) return;
+    setCopying(true);
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('inventory_products')
+        .select('*')
+        .in('id', selectedIds);
+      if (fetchError) throw fetchError;
+      if (!data?.length) return;
+      const newRecords = data.map(({ id, created_at, ...rest }) => rest);
+      const { error: insertError } = await supabase.from('inventory_products').insert(newRecords);
+      if (insertError) throw insertError;
+      setSelectedIds([]);
+      refresh();
+    } catch (err) {
+      console.error('拷贝失败:', err);
+    } finally {
+      setCopying(false);
+    }
+  };
 
   const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
     if (searchText) return query.or(`name.ilike.%${searchText}%,sku.ilike.%${searchText}%`);
@@ -51,8 +76,10 @@ export default function ProductDatabasePage() {
           <button onClick={refresh} className="flex items-center gap-1.5 h-9 px-4 bg-white border border-gray-300 text-gray-800 text-sm rounded hover:bg-gray-50">
             <Search className="w-4 h-4" /><span>查询</span>
           </button>
-          <button className="flex items-center gap-1.5 h-9 px-4 bg-[#3c8dbc] text-white text-sm rounded hover:bg-[#367fa9] border border-[#367fa9]">
-            <span>拷贝至库存商品</span>
+          <button onClick={handleCopy} disabled={selectedIds.length === 0 || copying}
+            className="flex items-center gap-1.5 h-9 px-4 bg-[#3c8dbc] text-white text-sm rounded hover:bg-[#367fa9] border border-[#367fa9] disabled:opacity-50 disabled:cursor-not-allowed">
+            <Copy className="w-4 h-4" />
+            <span>{copying ? '拷贝中...' : selectedIds.length > 0 ? `拷贝至库存商品(${selectedIds.length})` : '拷贝至库存商品'}</span>
           </button>
         </div>
       </div>
@@ -66,6 +93,7 @@ export default function ProductDatabasePage() {
           />
         </div>
         <DataTable columns={columns} data={products} loading={loading} error={error} emptyText="没有找到匹配的记录"
+          checkbox selectedIds={selectedIds} onSelectionChange={setSelectedIds}
           pagination={{ page, totalPages, total, pageSize: 20, setPage }} />
       </div>
     </div>
