@@ -89,6 +89,16 @@ export const EXPENSE_EXPORT_COLUMNS: CsvColumn[] = [
   { label: '發生時間', key: 'occurred_at' },
 ];
 
+/** Columns for scan-register records export. */
+export const SCAN_REGISTER_EXPORT_COLUMNS: CsvColumn[] = [
+  { label: '流水號', key: 'serial_number' },
+  { label: '支付方式', key: 'payment_method' },
+  { label: '轉賬金額', key: 'amount' },
+  { label: '備註', key: 'remarks' },
+  { label: '狀態', key: 'status' },
+  { label: '創建時間', key: 'created_at' },
+];
+
 /* ------------------------------------------------------------------ */
 /*  Escape helpers                                                     */
 /* ------------------------------------------------------------------ */

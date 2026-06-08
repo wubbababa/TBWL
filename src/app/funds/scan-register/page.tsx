@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { CreditCard, RefreshCw, Search, FileDown, ChevronDown } from 'lucide-react';
+import { CreditCard, RefreshCw, Search, FileDown, ChevronDown, Loader2 } from 'lucide-react';
 import { useTableQuery } from '@/lib/useTableQuery';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import { supabase } from '@/lib/supabase';
+import { generateCsv, downloadCsv, SCAN_REGISTER_EXPORT_COLUMNS } from '@/lib/csv';
 
 interface ScanRecord {
   id: string;
@@ -17,6 +19,26 @@ interface ScanRecord {
 
 export default function ScanRegisterPage() {
   const [methodFilter, setMethodFilter] = useState('');
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('scan_register')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      const csv = generateCsv(data ?? [], SCAN_REGISTER_EXPORT_COLUMNS);
+      const ts = new Date().toISOString().slice(0, 10);
+      downloadCsv(csv, `掃碼轉賬登記記錄_${ts}.csv`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      alert('导出失败：' + msg);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const filterFn = useCallback((query: Parameters<typeof Array.isArray>[0]) => {
     let q = query;
@@ -66,8 +88,8 @@ export default function ScanRegisterPage() {
         <button onClick={refresh} className="bg-white border border-gray-300 hover:bg-gray-50 px-4 py-1.5 rounded text-sm flex items-center gap-1.5 font-medium shadow-sm">
           <Search className="w-4 h-4" /><span>查詢</span>
         </button>
-        <button className="bg-white border border-gray-300 hover:bg-gray-50 px-4 py-1.5 rounded text-sm flex items-center gap-1.5 font-medium shadow-sm">
-          <FileDown className="w-4 h-4" /><span>導出Excel</span>
+        <button onClick={handleExport} disabled={exporting} className="bg-white border border-gray-300 hover:bg-gray-50 px-4 py-1.5 rounded text-sm flex items-center gap-1.5 font-medium shadow-sm disabled:opacity-50">
+          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}<span>{exporting ? '正在导出…' : '導出Excel'}</span>
         </button>
       </div>
 
